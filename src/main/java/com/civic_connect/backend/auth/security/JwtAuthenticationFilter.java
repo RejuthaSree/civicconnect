@@ -1,7 +1,7 @@
 package com.civic_connect.backend.auth.security;
 
 
-import com.civic_connect.backend.user.CustomUserDetailsService;
+import com.civic_connect.backend.user.security.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
