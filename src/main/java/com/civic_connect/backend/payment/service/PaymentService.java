@@ -58,8 +58,20 @@ public class PaymentService {
         PaymentSource source = request.paymentSource() == null ? PaymentSource.CITIZEN : request.paymentSource();
         validatePayer(payer, booking, source);
         validatePaymentEligibility(booking, request.amount());
-        if (payments.findByBookingId(booking.getId()).isPresent()) {
-            throw new ApiException(HttpStatus.CONFLICT, "A payment already exists for this booking");
+        Payment existingPayment = payments.findByBookingId(booking.getId()).orElse(null);
+        if (existingPayment != null) {
+            if (existingPayment.getPaymentStatus() == PaymentStatus.SUCCESS) {
+                throw new ApiException(HttpStatus.CONFLICT, "This booking has already been paid");
+            }
+            if (!existingPayment.getPayer().getId().equals(payer.getId())
+                    || existingPayment.getPaymentSource() != source) {
+                throw new ApiException(HttpStatus.CONFLICT,
+                        "A pending payment already exists for this booking");
+            }
+            // Checkout may have been closed or a test payment may have failed. Reuse the
+            // already-created Razorpay order instead of blocking the citizen from retrying.
+            return new RazorpayOrderResponse(existingPayment.getRazorpayOrderId(),
+                    existingPayment.getAmount(), existingPayment.getCurrency(), keyId);
         }
 
         try {
