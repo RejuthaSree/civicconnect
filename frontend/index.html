@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CivicConnect | Civic action, made visible</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="logged-out">
+    <section id="login-gate" class="login-gate">
+      <div class="login-grid"></div>
+      <div class="login-card">
+        <a class="brand" href="#"
+          ><span class="brand-mark">C</span
+          ><span>Civic<span>Connect</span></span></a
+        >
+        <p class="eyebrow accent">Civic action platform</p>
+        <h1>Community issues,<br /><em>made actionable.</em></h1>
+        <p class="login-copy">
+          Report local problems, coordinate trusted workers, and see every
+          resolution through to completion.
+        </p>
+        <button id="gate-google-login" class="primary-button login-button">
+          Continue with Google <span>→</span>
+        </button>
+        <p id="login-error" class="login-error" role="alert"></p>
+        <p class="login-footnote">
+          Secure sign-in · Your API access is protected with JWT
+        </p>
+      </div>
+      <div class="login-art">
+        <div class="art-ring ring-one"></div>
+        <div class="art-ring ring-two"></div>
+        <div class="art-core">CC</div>
+        <span class="art-dot dot-one"></span
+        ><span class="art-dot dot-two"></span
+        ><span class="art-dot dot-three"></span>
+        <p>REPORT <b>→</b> RESOLVE <b>→</b> IMPROVE</p>
+      </div>
+    </section>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard"
+          ><span class="brand-mark">C</span
+          ><span>Civic<span>Connect</span></span></a
+        >
+        <p class="eyebrow nav-label">Workspace</p>
+        <nav id="navigation" class="navigation">
+          <button class="nav-link active" data-view="dashboard">
+            <span>◈</span>Overview
+          </button>
+          <button class="nav-link" data-view="complaints">
+            <span>⌁</span>Complaints
+          </button>
+          <button class="nav-link" data-view="workers">
+            <span>♙</span>Workers
+          </button>
+          <button class="nav-link" data-view="assignments">
+            <span>↝</span>Assignments
+          </button>
+          <button class="nav-link" data-view="bookings">
+            <span>◫</span>Bookings
+          </button>
+          <button class="nav-link" data-view="payments">
+            <span>₹</span>Payments
+          </button>
+          <button class="nav-link" data-view="notifications">
+            <span>◌</span>Notifications
+            <b id="notification-dot" class="notification-dot hidden"></b>
+          </button>
+          <button class="nav-link" data-view="admin">
+            <span>⚙</span>Admin console
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="api-health">
+            <i></i><span>API</span
+            ><strong id="api-label">localhost:8080</strong>
+          </div>
+          <button id="logout-button" class="text-button">Log out</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <button
+            class="mobile-menu"
+            id="mobile-menu"
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
+          <div>
+            <p class="eyebrow" id="section-kicker">Command centre</p>
+            <h1 id="page-title">Civic action, in one place.</h1>
+          </div>
+          <div class="profile-box">
+            <span id="profile-initial">?</span>
+            <div>
+              <strong id="profile-name">Guest user</strong
+              ><small id="profile-email">Sign in to continue</small>
+            </div>
+          </div>
+        </header>
+
+        <section id="auth-banner" class="auth-banner">
+          <div>
+            <p class="eyebrow">Authentication required</p>
+            <h2>Sign in to work with live civic data.</h2>
+            <p>
+              The backend issues a JWT after Google sign-in. Every API request
+              below uses it automatically.
+            </p>
+          </div>
+          <button id="google-login" class="primary-button">
+            Continue with Google <span>→</span>
+          </button>
+        </section>
+
+        <section id="dashboard" class="view active-view">
+          <div class="hero-panel">
+            <div>
+              <p class="eyebrow accent">CivicConnect platform</p>
+              <h2>Turn reports into resolved work.</h2>
+              <p>
+                Create community reports, coordinate verified workers, confirm
+                completion, and follow the payment trail—without leaving the
+                workspace.
+              </p>
+              <div class="hero-actions">
+                <button class="primary-button go-to" data-target="complaints">
+                  Report an issue <span>→</span></button
+                ><button class="secondary-button go-to" data-target="workers">
+                  Find a worker
+                </button>
+              </div>
+            </div>
+            <div class="hero-orbit">
+              <div class="orbit-ring"></div>
+              <div class="orbit-core">CC</div>
+              <span class="pulse p1"></span><span class="pulse p2"></span
+              ><span class="pulse p3"></span>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <article>
+              <span>01</span><strong>Report</strong>
+              <p>Citizen submits a location-aware complaint.</p>
+            </article>
+            <article>
+              <span>02</span><strong>Resolve</strong>
+              <p>Worker is approved, assigned, and verified.</p>
+            </article>
+            <article>
+              <span>03</span><strong>Close</strong>
+              <p>Book, pay, review, and notify everyone.</p>
+            </article>
+          </div>
+          <section class="card quick-start">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Start here</p>
+                <h2>Live account check</h2>
+              </div>
+              <button id="load-me" class="secondary-button">
+                Load my profile
+              </button>
+            </div>
+            <pre id="profile-result" class="result-box">
+No account data loaded yet.</pre
+            >
+          </section>
+        </section>
+
+        <section id="complaints" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Citizen reporting</p>
+              <h2>Complaints</h2>
+            </div>
+            <div class="action-row">
+              <button
+                class="secondary-button endpoint-action"
+                data-endpoint="complaints-list"
+              >
+                Browse reports</button
+              ><button class="primary-button" data-modal="complaint-modal">
+                + New complaint
+              </button>
+            </div>
+          </div>
+          <div class="card filter-card">
+            <div class="inline-form">
+              <label
+                >Status<select id="complaint-status">
+                  <option value="">All statuses</option>
+                  <option>REPORTED</option>
+                  <option>UNDER_REVIEW</option>
+                  <option>ASSIGNED</option>
+                  <option>WORK_ACCEPTED</option>
+                  <option>IN_PROGRESS</option>
+                  <option>WORK_COMPLETED</option>
+                  <option>CITIZEN_VERIFICATION</option>
+                  <option>PAYMENT_APPROVED</option>
+                  <option>RESOLVED</option>
+                  <option>REJECTED</option>
+                </select></label
+              ><label
+                >Page<input
+                  id="complaint-page"
+                  type="number"
+                  value="0"
+                  min="0" /></label
+              ><label
+                >Size<input
+                  id="complaint-size"
+                  type="number"
+                  value="20"
+                  min="1" /></label
+              ><button
+                class="primary-button endpoint-action"
+                data-endpoint="complaints-list"
+              >
+                Load complaints</button
+              ><button
+                class="secondary-button endpoint-action"
+                data-endpoint="complaints-mine"
+              >
+                My complaints
+              </button>
+            </div>
+          </div>
+          <div id="complaint-list" class="data-grid empty-state">
+            Load complaints to see live results.
+          </div>
+          <div class="card action-card">
+            <div>
+              <p class="eyebrow">Complaint actions</p>
+              <h3>Vote or verify a report</h3>
+            </div>
+            <div class="inline-form compact">
+              <label
+                >Complaint ID<input
+                  id="complaint-action-id"
+                  type="number"
+                  placeholder="e.g. 101" /></label
+              ><button
+                class="secondary-button endpoint-action"
+                data-endpoint="complaint-vote"
+              >
+                Vote</button
+              ><button
+                class="secondary-button endpoint-action"
+                data-endpoint="complaint-verify"
+              >
+                Verify resolved
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="workers" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Workforce</p>
+              <h2>Workers</h2>
+            </div>
+            <button class="primary-button" data-modal="worker-modal">
+              Become a worker
+            </button>
+          </div>
+          <div class="card">
+            <div class="inline-form">
+              <label
+                >Skill<select id="worker-skill">
+                  <option value="">All skills</option>
+                  <option>ELECTRICIAN</option>
+                  <option>PLUMBER</option>
+                  <option>CONTRACTOR</option>
+                  <option>SANITATION</option>
+                  <option>TREE_MAINTENANCE</option>
+                  <option>ROAD_REPAIR</option>
+                </select></label
+              ><label
+                >Page<input
+                  id="worker-page"
+                  type="number"
+                  value="0"
+                  min="0" /></label
+              ><button
+                class="primary-button endpoint-action"
+                data-endpoint="workers-browse"
+              >
+                Browse verified workers</button
+              ><button
+                class="secondary-button endpoint-action"
+                data-endpoint="workers-me"
+              >
+                My worker profile
+              </button>
+            </div>
+          </div>
+          <div id="worker-list" class="data-grid empty-state">
+            Browse verified workers to view the directory.
+          </div>
+          <div class="two-column">
+            <article class="card">
+              <p class="eyebrow">Profile lookup</p>
+              <div class="inline-form compact">
+                <label
+                  >Worker ID<input id="worker-detail-id" type="number" /></label
+                ><button
+                  class="secondary-button endpoint-action"
+                  data-endpoint="worker-profile"
+                >
+                  Load profile
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Public work record</p>
+              <div class="inline-form compact">
+                <label
+                  >Worker ID<input
+                    id="worker-portfolio-id"
+                    type="number" /></label
+                ><button
+                  class="secondary-button endpoint-action"
+                  data-endpoint="worker-portfolio"
+                >
+                  Portfolio</button
+                ><button
+                  class="secondary-button endpoint-action"
+                  data-endpoint="worker-reviews"
+                >
+                  Reviews
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="assignments" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Resolution workflow</p>
+              <h2>Assignments</h2>
+            </div>
+          </div>
+          <div class="workflow">
+            <span>Request / assign</span><i>→</i><span>Worker accepts</span
+            ><i>→</i><span>Worker completes</span><i>→</i
+            ><span>Citizen verifies</span><i>→</i><span>Review</span>
+          </div>
+          <div class="form-grid">
+            <article class="card">
+              <p class="eyebrow">Step 1 · Citizen</p>
+              <h3>Request a worker</h3>
+              <div class="stack-form">
+                <label
+                  >Complaint ID<input
+                    id="request-complaint-id"
+                    type="number" /></label
+                ><label
+                  >Worker ID<input
+                    id="request-worker-id"
+                    type="number" /></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="assignment-request"
+                >
+                  Request worker
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Step 1 · Admin</p>
+              <h3>Assign a worker</h3>
+              <div class="stack-form">
+                <label
+                  >Complaint ID<input
+                    id="assign-complaint-id"
+                    type="number" /></label
+                ><label
+                  >Worker ID<input id="assign-worker-id" type="number" /></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="assignment-create"
+                >
+                  Create assignment
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Step 2 · Worker</p>
+              <h3>Accept work</h3>
+              <div class="stack-form">
+                <label
+                  >Assignment ID<input
+                    id="accept-assignment-id"
+                    type="number" /></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="assignment-accept"
+                >
+                  Accept assignment
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Step 3 · Worker</p>
+              <h3>Complete work</h3>
+              <div class="stack-form">
+                <label
+                  >Assignment ID<input
+                    id="complete-assignment-id"
+                    type="number" /></label
+                ><label
+                  >Remarks<textarea
+                    id="assignment-remarks"
+                    placeholder="Describe the completed work"
+                  ></textarea></label
+                ><label
+                  >Before image URL<input
+                    id="before-image-url"
+                    type="url"
+                    placeholder="https://..."
+                /></label>
+                <div id="before-preview" class="image-preview">
+                  <span>Before image preview</span>
+                </div>
+                <label
+                  >After image URL<input
+                    id="after-image-url"
+                    type="url"
+                    placeholder="https://..."
+                /></label>
+                <div id="after-preview" class="image-preview">
+                  <span>After image preview</span>
+                </div>
+                <button
+                  class="primary-button endpoint-action"
+                  data-endpoint="assignment-complete"
+                >
+                  Submit completion
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Step 4 · Citizen</p>
+              <h3>Verify work</h3>
+              <div class="stack-form">
+                <label
+                  >Assignment ID<input
+                    id="verify-assignment-id"
+                    type="number" /></label
+                ><label
+                  >Decision<select id="verification-decision">
+                    <option value="true">Approve</option>
+                    <option value="false">Reject</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="assignment-verify"
+                >
+                  Submit decision
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Step 5 · Citizen</p>
+              <h3>Review worker</h3>
+              <div class="stack-form">
+                <label
+                  >Assignment ID<input
+                    id="review-assignment-id"
+                    type="number" /></label
+                ><label
+                  >Rating<select id="review-rating">
+                    <option value="5">5 — Excellent</option>
+                    <option value="4">4 — Good</option>
+                    <option value="3">3 — Okay</option>
+                    <option value="2">2 — Poor</option>
+                    <option value="1">1 — Bad</option>
+                  </select></label
+                ><label>Comment<textarea id="review-comment"></textarea></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="review-create"
+                >
+                  Publish review
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="bookings" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Service workflow</p>
+              <h2>Bookings</h2>
+            </div>
+            <button
+              class="secondary-button endpoint-action"
+              data-endpoint="bookings-mine"
+            >
+              Load my bookings
+            </button>
+          </div>
+          <div class="form-grid three-up">
+            <article class="card">
+              <p class="eyebrow">Citizen</p>
+              <h3>Create booking</h3>
+              <div class="stack-form">
+                <label
+                  >Worker ID<input
+                    id="booking-worker-id"
+                    type="number" /></label
+                ><label
+                  >Complaint ID<input
+                    id="booking-issue-id"
+                    type="number" /></label
+                ><label
+                  >Amount (₹)<input
+                    id="booking-amount"
+                    type="number"
+                    min="1"
+                    step="0.01" /></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="booking-create"
+                >
+                  Create booking
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Worker</p>
+              <h3>Move work forward</h3>
+              <div class="stack-form">
+                <label
+                  >Booking ID<input
+                    id="booking-action-id"
+                    type="number" /></label
+                ><button
+                  class="secondary-button endpoint-action"
+                  data-endpoint="booking-accept"
+                >
+                  Accept</button
+                ><button
+                  class="secondary-button endpoint-action"
+                  data-endpoint="booking-start"
+                >
+                  Start</button
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="booking-complete"
+                >
+                  Complete
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Citizen</p>
+              <h3>Confirm completion</h3>
+              <div class="stack-form">
+                <label
+                  >Booking ID<input id="booking-confirm-id" type="number"
+                /></label>
+                <p class="hint">This changes the booking to PAYMENT_PENDING.</p>
+                <button
+                  class="primary-button endpoint-action"
+                  data-endpoint="booking-confirm"
+                >
+                  Confirm completion
+                </button>
+              </div>
+            </article>
+          </div>
+          <div id="booking-list" class="data-grid empty-state">
+            Your bookings will appear here.
+          </div>
+        </section>
+
+        <section id="payments" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Secure settlement</p>
+              <h2>Payments</h2>
+            </div>
+            <button
+              class="secondary-button endpoint-action"
+              data-endpoint="payments-history"
+            >
+              Payment history
+            </button>
+          </div>
+          <div class="two-column">
+            <article class="card">
+              <p class="eyebrow">Secure checkout</p>
+              <h3>Pay booking</h3>
+              <div class="stack-form">
+                <label
+                  >Booking ID<input
+                    id="payment-booking-id"
+                    type="number" /></label
+                ><label
+                  >Amount (₹)<input
+                    id="payment-amount"
+                    type="number"
+                    min="1"
+                    step="0.01" /></label
+                ><label
+                  >Payment source<select id="payment-source">
+                    <option value="CITIZEN">Citizen</option>
+                    <option value="GOVERNMENT">Government / Admin</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="payment-order"
+                >
+                  Pay securely</button
+                ><button id="open-checkout" class="secondary-button" disabled>
+                  Continue to Razorpay
+                </button>
+              </div>
+            </article>
+            <article class="card payment-help">
+              <p class="eyebrow">How payment works</p>
+              <h3>Simple and secure</h3>
+              <p>
+                Only bookings marked <strong>PAYMENT_PENDING</strong> can be
+                paid. Click “Pay now” on a pending booking, then finish using
+                Razorpay Checkout.
+              </p>
+              <p>
+                If Checkout is closed, select “Pay securely” again—the pending
+                order will reopen.
+              </p>
+              <input id="razorpay-order-id" type="hidden" /><input
+                id="razorpay-payment-id"
+                type="hidden"
+              /><input id="razorpay-signature" type="hidden" />
+            </article>
+          </div>
+          <div id="payment-list" class="data-grid empty-state">
+            Load payment history to view transactions.
+          </div>
+        </section>
+
+        <section id="notifications" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Updates</p>
+              <h2>Notifications</h2>
+            </div>
+            <button
+              class="primary-button endpoint-action"
+              data-endpoint="notifications-list"
+            >
+              Refresh
+            </button>
+          </div>
+          <div id="notification-list" class="notification-list empty-state">
+            No notifications loaded.
+          </div>
+        </section>
+
+        <section id="admin" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Government access</p>
+              <h2>Admin console</h2>
+            </div>
+          </div>
+          <div class="form-grid three-up">
+            <article class="card">
+              <p class="eyebrow">Workforce verification</p>
+              <h3>Approve or reject a worker</h3>
+              <div class="stack-form">
+                <label
+                  >Worker ID<input id="admin-worker-id" type="number" /></label
+                ><label
+                  >Decision<select id="admin-approved">
+                    <option value="true">Approve</option>
+                    <option value="false">Reject</option>
+                  </select></label
+                ><label>Notes<input id="admin-notes" /></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-verify-worker"
+                >
+                  Save verification
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Availability</p>
+              <h3>Set worker availability</h3>
+              <div class="stack-form">
+                <label
+                  >Worker ID<input
+                    id="availability-worker-id"
+                    type="number" /></label
+                ><label
+                  >Available<select id="availability-value">
+                    <option value="true">Available</option>
+                    <option value="false">Unavailable</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-availability"
+                >
+                  Update availability
+                </button>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Priority</p>
+              <h3>Change complaint priority</h3>
+              <div class="stack-form">
+                <label
+                  >Complaint ID<input
+                    id="priority-complaint-id"
+                    type="number" /></label
+                ><label
+                  >Priority<select id="priority-value">
+                    <option>LOW</option>
+                    <option>MEDIUM</option>
+                    <option>HIGH</option>
+                    <option>CRITICAL</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-priority"
+                >
+                  Update priority
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="complaint-modal" class="modal" aria-hidden="true">
+      <div class="modal-panel">
+        <button class="close-modal" aria-label="Close">×</button>
+        <p class="eyebrow">Citizen report</p>
+        <h2>Report a civic issue</h2>
+        <form id="complaint-form" class="form-grid modal-form">
+          <label>Title<input name="title" required /></label
+          ><label
+            >Issue type<select name="issueType" required>
+              <option>ROAD</option>
+              <option>GARBAGE</option>
+              <option>WATER</option>
+              <option>ELECTRICITY</option>
+              <option>DRAINAGE</option>
+              <option>SAFETY</option>
+              <option>OTHER</option>
+            </select></label
+          ><label class="full"
+            >Description<textarea name="description" required></textarea></label
+          ><label>Address<input name="address" required /></label
+          ><label>Area<input name="area" required /></label
+          ><label>City<input name="city" required /></label
+          ><label
+            >Priority<select name="priority">
+              <option>MEDIUM</option>
+              <option>LOW</option>
+              <option>HIGH</option>
+              <option>CRITICAL</option>
+            </select></label
+          ><label
+            >Latitude<input
+              name="latitude"
+              type="number"
+              step="any"
+              required /></label
+          ><label
+            >Longitude<input
+              name="longitude"
+              type="number"
+              step="any"
+              required /></label
+          ><label class="full"
+            >Image URL <span class="optional">optional</span
+            ><input name="imageUrl" type="url" /></label
+          ><button class="primary-button full" type="submit">
+            Submit complaint <span>→</span>
+          </button>
+        </form>
+      </div>
+    </div>
+    <div id="worker-modal" class="modal" aria-hidden="true">
+      <div class="modal-panel">
+        <button class="close-modal" aria-label="Close">×</button>
+        <p class="eyebrow">Worker onboarding</p>
+        <h2>Register worker profile</h2>
+        <form id="worker-form" class="form-grid modal-form">
+          <label
+            >Skill<select name="skill" required>
+              <option>ELECTRICIAN</option>
+              <option>PLUMBER</option>
+              <option>CONTRACTOR</option>
+              <option>SANITATION</option>
+              <option>TREE_MAINTENANCE</option>
+              <option>ROAD_REPAIR</option>
+            </select></label
+          ><label>Service area<input name="serviceArea" required /></label
+          ><label>City<input name="city" /></label
+          ><label>Phone<input name="phoneNumber" /></label
+          ><label
+            >Latitude<input name="latitude" type="number" step="any" /></label
+          ><label
+            >Longitude<input name="longitude" type="number" step="any" /></label
+          ><label
+            >Work radius (km)<input
+              name="workRadiusKm"
+              type="number"
+              step="any" /></label
+          ><label
+            >Experience (years)<input
+              name="experienceYears"
+              type="number" /></label
+          ><label>Address<input name="address" /></label
+          ><label
+            >Profile image URL<input name="profilePhotoUrl" type="url" /></label
+          ><label
+            >Aadhaar masked<input
+              name="aadhaarMasked"
+              placeholder="XXXX-XXXX-1234" /></label
+          ><label
+            >Government ID URL<input
+              name="governmentIdReference"
+              type="url" /></label
+          ><label class="full"
+            >Certificates<textarea name="certificates"></textarea></label
+          ><button class="primary-button full" type="submit">
+            Register worker <span>→</span>
+          </button>
+        </form>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
