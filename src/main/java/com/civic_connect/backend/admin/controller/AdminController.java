@@ -15,6 +15,10 @@ public class AdminController {
  public AdminController(ComplaintService complaints, WorkforceAdminService workforce) {
   this.complaints=complaints; this.workforce=workforce;
  }
+ @GetMapping("/workers")
+ public java.util.List<WorkerResponse> workers(Authentication authentication) {
+  return workforce.list(authentication.getName());
+ }
  @PatchMapping("/complaints/{id}/priority")
  public ComplaintResponse priority(Authentication a,@PathVariable("id") Long id,
                                    @RequestParam("priority") PriorityLevel priority) {

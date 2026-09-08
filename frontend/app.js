@@ -184,16 +184,74 @@ function renderCards(target, items, renderer) {
   container.innerHTML = items.map(renderer).join("");
 }
 function complaintCard(c) {
-  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">ID ${c.id} · ${time(c.reportedAt)}</p></article>`;
+  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
 }
 function workerCard(w) {
   return `<article class="data-card"><span class="badge">${escapeHtml(w.verificationStatus)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.skill)} · ${escapeHtml(w.serviceArea || "—")}</p><p>★ ${(w.rating ?? 0).toFixed?.(1) ?? w.rating} · ${w.completedTasks ?? 0} jobs</p><p class="hint">Worker ID ${w.id}</p></article>`;
 }
+function assignmentCard(a) {
+  const evidence = a.afterImageUrl ? `<img class="complaint-image" src="${escapeHtml(a.afterImageUrl)}" alt="Completed work evidence">` : "";
+  return `<article class="data-card">${evidence}<span class="badge">${escapeHtml(a.completionStatus || "AWAITING_ACCEPTANCE")}</span><h3>Assignment #${a.id}</h3><p>Complaint #${a.complaintId} · Worker #${a.workerId}</p><p>${a.remarks ? escapeHtml(a.remarks) : "No completion note yet."}</p><p class="hint">Assigned ${time(a.assignedAt)}</p></article>`;
+}
 function bookingCard(b) {
-  return `<article class="data-card"><span class="badge">${escapeHtml(b.bookingStatus)}</span><h3>Booking #${b.id}</h3><p>₹${b.amount} · Worker #${b.workerId}</p><p>Complaint #${b.issueId}</p><p class="hint">${time(b.updatedAt)}</p>${b.bookingStatus === "PAYMENT_PENDING" ? `<button class="primary-button pay-booking" data-id="${b.id}" data-amount="${b.amount}">Pay now</button>` : ""}</article>`;
+  const canPay = b.bookingStatus === "PAYMENT_PENDING" && ((b.issueScope === "HOUSEHOLD" && state.user?.role === "CITIZEN") || (b.issueScope === "PUBLIC" && state.user?.role === "ADMIN"));
+  return `<article class="data-card"><span class="badge">${escapeHtml(b.bookingStatus)}</span><h3>Booking #${b.id}</h3><p>₹${b.amount} · Worker #${b.workerId}</p><p>Complaint #${b.issueId} · ${b.issueScope === "HOUSEHOLD" ? "Citizen payment" : "Government payment"}</p><p class="hint">${time(b.updatedAt)}</p>${canPay ? `<button class="primary-button pay-booking" data-id="${b.id}" data-amount="${b.amount}" data-source="${b.issueScope === "HOUSEHOLD" ? "CITIZEN" : "GOVERNMENT"}">Pay securely</button>` : ""}</article>`;
+}
+
+function fillSelect(id, items, label) {
+  const select = $(id);
+  if (!select) return;
+  select.innerHTML = `<option value="">Choose an option</option>${items.map((item) => `<option value="${item.id}">${escapeHtml(label(item))}</option>`).join("")}`;
+}
+
+async function loadAssignmentChoices() {
+  if (!state.user?.role) return;
+  try {
+    const [complaintPage, workerPage, assignments, bookings, adminWorkers] = await Promise.all([
+      api(state.user.role === "CITIZEN" ? "/api/complaints/mine?page=0&size=100" : "/api/complaints?page=0&size=100"),
+      api("/api/workers?page=0&size=100"),
+      api("/api/assignments/mine"),
+      api("/api/bookings/mine"),
+      state.user.role === "ADMIN" ? api("/api/admin/workers") : Promise.resolve([]),
+    ]);
+    const complaints = complaintPage.content || [];
+    const workers = workerPage.content || [];
+    const complaintLabel = (c) => `#${c.id} — ${c.title} (${c.status})`;
+    const workerLabel = (w) => `#${w.id} — ${w.name} · ${w.skill}`;
+    fillSelect("request-complaint-id", complaints.filter((c) => !c.assignedWorkerId), complaintLabel);
+    fillSelect("assign-complaint-id", complaints.filter((c) => !c.assignedWorkerId), complaintLabel);
+    fillSelect("request-worker-id", workers, workerLabel);
+    fillSelect("assign-worker-id", workers, workerLabel);
+    fillSelect("booking-worker-id", workers, workerLabel);
+    fillSelect("worker-detail-id", workers, workerLabel);
+    fillSelect("worker-portfolio-id", workers, workerLabel);
+    fillSelect("admin-worker-id", adminWorkers, workerLabel);
+    fillSelect("availability-worker-id", adminWorkers, workerLabel);
+    fillSelect("priority-complaint-id", complaints, complaintLabel);
+    fillSelect("booking-issue-id", complaints, complaintLabel);
+    const assignmentLabel = (a) => `#${a.id} — complaint #${a.complaintId} · ${a.completionStatus || "awaiting acceptance"}`;
+    fillSelect("accept-assignment-id", assignments.filter((a) => !a.acceptedAt), assignmentLabel);
+    fillSelect("complete-assignment-id", assignments.filter((a) => a.acceptedAt && !a.completedAt), assignmentLabel);
+    fillSelect("verify-assignment-id", assignments.filter((a) => a.completionStatus === "PENDING_CITIZEN_APPROVAL"), assignmentLabel);
+    fillSelect("review-assignment-id", assignments.filter((a) => a.completionStatus === "APPROVED"), assignmentLabel);
+    const bookingLabel = (b) => `#${b.id} — complaint #${b.issueId} · ₹${b.amount} · ${b.bookingStatus}`;
+    fillSelect("booking-action-id", bookings.filter((b) => ["PENDING", "ACCEPTED", "IN_PROGRESS"].includes(b.bookingStatus)), bookingLabel);
+    fillSelect("booking-confirm-id", bookings.filter((b) => b.bookingStatus === "COMPLETED"), bookingLabel);
+    fillSelect("payment-booking-id", bookings.filter((b) => b.bookingStatus === "PAYMENT_PENDING"), bookingLabel);
+  } catch (error) {
+    showToast("Could not load complaint and worker choices.", true);
+  }
 }
 function paymentCard(p) {
   return `<article class="data-card"><span class="badge">${escapeHtml(p.paymentStatus)}</span><h3>₹${p.amount} ${escapeHtml(p.currency)}</h3><p>${escapeHtml(p.paymentSource)} · Booking #${p.bookingId}</p><p class="hint">${escapeHtml(p.razorpayOrderId || "No order ID")} · ${time(p.createdAt)}</p></article>`;
+}
+
+function renderCitizenProfile(user) {
+  $("profile-result").innerHTML = `<div class="profile-details"><strong>${escapeHtml(user.username || "Civic user")}</strong><span>${escapeHtml(user.email || "")}</span><span class="badge">${escapeHtml(user.role || "CITIZEN")}</span><p>Your reports, bookings, confirmations, and payments are available from this workspace.</p></div>`;
+}
+
+function renderWorkerProfile(worker) {
+  $("profile-result").innerHTML = `<div class="profile-details">${worker.profilePhotoUrl ? `<img class="profile-photo" src="${escapeHtml(worker.profilePhotoUrl)}" alt="${escapeHtml(worker.name)}">` : ""}<strong>${escapeHtml(worker.name)}</strong><span class="badge">${escapeHtml(worker.verificationStatus)}</span><span>${escapeHtml(worker.skill)} · ${escapeHtml(worker.serviceArea || "Service area not set")}</span><p>${worker.experienceYears || 0} years experience · ★ ${worker.rating ?? 0} (${worker.totalReviews ?? 0} reviews) · ${worker.completedTasks ?? 0} completed jobs</p><p>${worker.available ? "Available for work" : "Currently unavailable"}</p></div>`;
 }
 
 async function action(name) {
@@ -256,7 +314,9 @@ async function action(name) {
       }
       case "workers-me":
         data = await api("/api/workers/me");
-        showResult("My worker profile", data);
+        renderWorkerProfile(data);
+        navigate("dashboard");
+        showToast("Your worker profile is shown on the dashboard.");
         break;
       case "worker-profile":
         data = await api(
@@ -283,6 +343,10 @@ async function action(name) {
         );
         showResult("Worker request", data);
         showToast("Worker request created.");
+        break;
+      case "assignments-mine":
+        data = await api("/api/assignments/mine");
+        renderCards("assignment-list", data, assignmentCard);
         break;
       case "assignment-create":
         data = await api(
@@ -471,7 +535,8 @@ function renderBookings(bookings) {
     button.addEventListener("click", () => {
       $("payment-booking-id").value = button.dataset.id;
       $("payment-amount").value = button.dataset.amount;
-      $("payment-source").value = "CITIZEN";
+      $("payment-source").value = button.dataset.source;
+      $("payment-source").disabled = true;
       navigate("payments");
       showToast(
         "Booking ready for payment. Select “Pay securely” to continue.",
@@ -522,12 +587,48 @@ function setUser(user) {
   document.body.classList.remove("logged-out");
   document.body.classList.add("logged-in");
   localStorage.setItem("civicconnect_user", JSON.stringify(user));
+  applyRoleWorkspace();
+  loadAssignmentChoices();
+}
+
+function applyRoleWorkspace() {
+  const role = state.user?.role || "CITIZEN";
+  document.querySelectorAll("[data-roles]").forEach((item) => {
+    item.classList.toggle("hidden", !item.dataset.roles.split(",").includes(role));
+  });
+  const dashboard = {
+    CITIZEN: {
+      title: "Your neighbourhood, moving forward.",
+      copy: "Report a household or public issue, choose a verified worker, and follow its progress from one clear place.",
+      actions: [["complaints", "Report an issue"], ["workers", "Find a worker"]],
+      steps: [["01", "Report", "Choose public or household so payment responsibility is clear."], ["02", "Choose", "Select one of the verified workers shown to you."], ["03", "Confirm", "Review completed work and pay securely when required."]],
+    },
+    WORKER: {
+      title: "Today’s field work, clearly organised.",
+      copy: "Keep your professional profile current, accept only your assigned work, and share before-and-after proof for citizens.",
+      actions: [["assignments", "View my assignments"], ["bookings", "Manage my bookings"]],
+      steps: [["01", "Receive", "See nearby requests and assignments intended for you."], ["02", "Resolve", "Accept, complete, and attach clear photo evidence."], ["03", "Build trust", "Citizens verify work and leave reviews on your profile."]],
+    },
+    ADMIN: {
+      title: "Public services, under control.",
+      copy: "Prioritise civic issues, verify workers, coordinate assignments, and pay approved public-issue work through Razorpay.",
+      actions: [["admin", "Open admin console"], ["complaints", "Review public issues"]],
+      steps: [["01", "Triage", "Set priorities and match verified workers to reported issues."], ["02", "Govern", "Approve worker applications and manage availability."], ["03", "Pay", "Use the government payment flow only for completed public work."]],
+    },
+  }[role];
+  $("dashboard-title").textContent = dashboard.title;
+  $("dashboard-copy").textContent = dashboard.copy;
+  $("dashboard-actions").innerHTML = dashboard.actions.map(([target, text]) => `<button class="${target === dashboard.actions[0][0] ? "primary-button" : "secondary-button"} go-to" data-target="${target}">${text} <span>→</span></button>`).join("");
+  $("dashboard-steps").innerHTML = dashboard.steps.map(([number, heading, text]) => `<article><span>${number}</span><strong>${heading}</strong><p>${text}</p></article>`).join("");
+  document.querySelectorAll("#dashboard-actions .go-to").forEach((button) => button.addEventListener("click", () => navigate(button.dataset.target)));
+  renderCitizenProfile({ ...state.user, role });
+  if (role === "WORKER") action("workers-me");
 }
 async function loadSignedInUser() {
   try {
     const user = await api("/api/users/me");
     setUser(user);
-    $("profile-result").textContent = JSON.stringify(user, null, 2);
+    applyRoleWorkspace();
     navigate("dashboard");
     return true;
   } catch (error) {

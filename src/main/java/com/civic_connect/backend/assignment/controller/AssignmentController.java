@@ -10,6 +10,11 @@ public class AssignmentController {
  public AssignmentController(AssignmentService service){
   this.service=service;
  }
+
+ @GetMapping("/mine")
+ public java.util.List<AssignmentResponse> mine(Authentication authentication) {
+  return service.mine(authentication.getName());
+ }
  @PostMapping public AssignmentResponse assign
          (Authentication a,
           @RequestParam("complaintId") Long complaintId,

@@ -55,26 +55,26 @@
           <button class="nav-link active" data-view="dashboard">
             <span>◈</span>Overview
           </button>
-          <button class="nav-link" data-view="complaints">
+          <button class="nav-link" data-view="complaints" data-roles="CITIZEN,ADMIN">
             <span>⌁</span>Complaints
           </button>
-          <button class="nav-link" data-view="workers">
+          <button class="nav-link" data-view="workers" data-roles="CITIZEN,WORKER,ADMIN">
             <span>♙</span>Workers
           </button>
-          <button class="nav-link" data-view="assignments">
+          <button class="nav-link" data-view="assignments" data-roles="CITIZEN,WORKER,ADMIN">
             <span>↝</span>Assignments
           </button>
-          <button class="nav-link" data-view="bookings">
+          <button class="nav-link" data-view="bookings" data-roles="CITIZEN,WORKER,ADMIN">
             <span>◫</span>Bookings
           </button>
-          <button class="nav-link" data-view="payments">
+          <button class="nav-link" data-view="payments" data-roles="CITIZEN,ADMIN">
             <span>₹</span>Payments
           </button>
           <button class="nav-link" data-view="notifications">
             <span>◌</span>Notifications
             <b id="notification-dot" class="notification-dot hidden"></b>
           </button>
-          <button class="nav-link" data-view="admin">
+          <button class="nav-link" data-view="admin" data-roles="ADMIN">
             <span>⚙</span>Admin console
           </button>
         </nav>
@@ -127,19 +127,13 @@
           <div class="hero-panel">
             <div>
               <p class="eyebrow accent">CivicConnect platform</p>
-              <h2>Turn reports into resolved work.</h2>
-              <p>
+              <h2 id="dashboard-title">Turn reports into resolved work.</h2>
+              <p id="dashboard-copy">
                 Create community reports, coordinate verified workers, confirm
                 completion, and follow the payment trail—without leaving the
                 workspace.
               </p>
-              <div class="hero-actions">
-                <button class="primary-button go-to" data-target="complaints">
-                  Report an issue <span>→</span></button
-                ><button class="secondary-button go-to" data-target="workers">
-                  Find a worker
-                </button>
-              </div>
+              <div id="dashboard-actions" class="hero-actions"></div>
             </div>
             <div class="hero-orbit">
               <div class="orbit-ring"></div>
@@ -148,7 +142,7 @@
               ><span class="pulse p3"></span>
             </div>
           </div>
-          <div class="stat-grid">
+          <div id="dashboard-steps" class="stat-grid">
             <article>
               <span>01</span><strong>Report</strong>
               <p>Citizen submits a location-aware complaint.</p>
@@ -166,15 +160,11 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Start here</p>
-                <h2>Live account check</h2>
+                <h2>Your account</h2>
               </div>
-              <button id="load-me" class="secondary-button">
-                Load my profile
-              </button>
+              <button id="load-me" class="secondary-button">Refresh profile</button>
             </div>
-            <pre id="profile-result" class="result-box">
-No account data loaded yet.</pre
-            >
+            <div id="profile-result" class="account-summary">Sign in to load your profile.</div>
           </section>
         </section>
 
@@ -310,11 +300,11 @@ No account data loaded yet.</pre
             Browse verified workers to view the directory.
           </div>
           <div class="two-column">
-            <article class="card">
+            <article class="card" data-roles="CITIZEN">
               <p class="eyebrow">Profile lookup</p>
               <div class="inline-form compact">
                 <label
-                  >Worker ID<input id="worker-detail-id" type="number" /></label
+                  >Choose a worker<select id="worker-detail-id"></select></label
                 ><button
                   class="secondary-button endpoint-action"
                   data-endpoint="worker-profile"
@@ -323,13 +313,11 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="ADMIN">
               <p class="eyebrow">Public work record</p>
               <div class="inline-form compact">
                 <label
-                  >Worker ID<input
-                    id="worker-portfolio-id"
-                    type="number" /></label
+                  >Choose a worker<select id="worker-portfolio-id"></select></label
                 ><button
                   class="secondary-button endpoint-action"
                   data-endpoint="worker-portfolio"
@@ -352,25 +340,23 @@ No account data loaded yet.</pre
               <p class="eyebrow">Resolution workflow</p>
               <h2>Assignments</h2>
             </div>
+            <button class="secondary-button endpoint-action" data-endpoint="assignments-mine">My assignments</button>
           </div>
+          <div id="assignment-list" class="data-grid empty-state">Load your assignments to see their current status.</div>
           <div class="workflow">
             <span>Request / assign</span><i>→</i><span>Worker accepts</span
             ><i>→</i><span>Worker completes</span><i>→</i
             ><span>Citizen verifies</span><i>→</i><span>Review</span>
           </div>
           <div class="form-grid">
-            <article class="card">
+            <article class="card" data-roles="WORKER">
               <p class="eyebrow">Step 1 · Citizen</p>
               <h3>Request a worker</h3>
               <div class="stack-form">
                 <label
-                  >Complaint ID<input
-                    id="request-complaint-id"
-                    type="number" /></label
+                  >Choose your complaint<select id="request-complaint-id"></select></label
                 ><label
-                  >Worker ID<input
-                    id="request-worker-id"
-                    type="number" /></label
+                  >Choose a verified worker<select id="request-worker-id"></select></label
                 ><button
                   class="primary-button endpoint-action"
                   data-endpoint="assignment-request"
@@ -384,11 +370,9 @@ No account data loaded yet.</pre
               <h3>Assign a worker</h3>
               <div class="stack-form">
                 <label
-                  >Complaint ID<input
-                    id="assign-complaint-id"
-                    type="number" /></label
+                  >Choose a complaint<select id="assign-complaint-id"></select></label
                 ><label
-                  >Worker ID<input id="assign-worker-id" type="number" /></label
+                  >Choose a verified worker<select id="assign-worker-id"></select></label
                 ><button
                   class="primary-button endpoint-action"
                   data-endpoint="assignment-create"
@@ -402,9 +386,7 @@ No account data loaded yet.</pre
               <h3>Accept work</h3>
               <div class="stack-form">
                 <label
-                  >Assignment ID<input
-                    id="accept-assignment-id"
-                    type="number" /></label
+                  >Choose assigned work<select id="accept-assignment-id"></select></label
                 ><button
                   class="primary-button endpoint-action"
                   data-endpoint="assignment-accept"
@@ -413,14 +395,12 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="WORKER">
               <p class="eyebrow">Step 3 · Worker</p>
               <h3>Complete work</h3>
               <div class="stack-form">
                 <label
-                  >Assignment ID<input
-                    id="complete-assignment-id"
-                    type="number" /></label
+                  >Choose accepted work<select id="complete-assignment-id"></select></label
                 ><label
                   >Remarks<textarea
                     id="assignment-remarks"
@@ -452,14 +432,12 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="CITIZEN">
               <p class="eyebrow">Step 4 · Citizen</p>
               <h3>Verify work</h3>
               <div class="stack-form">
                 <label
-                  >Assignment ID<input
-                    id="verify-assignment-id"
-                    type="number" /></label
+                  >Choose completed work<select id="verify-assignment-id"></select></label
                 ><label
                   >Decision<select id="verification-decision">
                     <option value="true">Approve</option>
@@ -473,14 +451,12 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="CITIZEN">
               <p class="eyebrow">Step 5 · Citizen</p>
               <h3>Review worker</h3>
               <div class="stack-form">
                 <label
-                  >Assignment ID<input
-                    id="review-assignment-id"
-                    type="number" /></label
+                  >Choose verified work<select id="review-assignment-id"></select></label
                 ><label
                   >Rating<select id="review-rating">
                     <option value="5">5 — Excellent</option>
@@ -515,18 +491,14 @@ No account data loaded yet.</pre
             </button>
           </div>
           <div class="form-grid three-up">
-            <article class="card">
+            <article class="card" data-roles="CITIZEN">
               <p class="eyebrow">Citizen</p>
               <h3>Create booking</h3>
               <div class="stack-form">
                 <label
-                  >Worker ID<input
-                    id="booking-worker-id"
-                    type="number" /></label
+                  >Choose a verified worker<select id="booking-worker-id"></select></label
                 ><label
-                  >Complaint ID<input
-                    id="booking-issue-id"
-                    type="number" /></label
+                  >Choose your complaint<select id="booking-issue-id"></select></label
                 ><label
                   >Amount (₹)<input
                     id="booking-amount"
@@ -541,14 +513,12 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="WORKER">
               <p class="eyebrow">Worker</p>
               <h3>Move work forward</h3>
               <div class="stack-form">
                 <label
-                  >Booking ID<input
-                    id="booking-action-id"
-                    type="number" /></label
+                  >Choose a booking<select id="booking-action-id"></select></label
                 ><button
                   class="secondary-button endpoint-action"
                   data-endpoint="booking-accept"
@@ -567,13 +537,12 @@ No account data loaded yet.</pre
                 </button>
               </div>
             </article>
-            <article class="card">
+            <article class="card" data-roles="CITIZEN">
               <p class="eyebrow">Citizen</p>
               <h3>Confirm completion</h3>
               <div class="stack-form">
                 <label
-                  >Booking ID<input id="booking-confirm-id" type="number"
-                /></label>
+                  >Choose completed booking<select id="booking-confirm-id"></select></label>
                 <p class="hint">This changes the booking to PAYMENT_PENDING.</p>
                 <button
                   class="primary-button endpoint-action"
@@ -608,9 +577,7 @@ No account data loaded yet.</pre
               <h3>Pay booking</h3>
               <div class="stack-form">
                 <label
-                  >Booking ID<input
-                    id="payment-booking-id"
-                    type="number" /></label
+                  >Choose a pending booking<select id="payment-booking-id"></select></label
                 ><label
                   >Amount (₹)<input
                     id="payment-amount"
@@ -686,7 +653,7 @@ No account data loaded yet.</pre
               <h3>Approve or reject a worker</h3>
               <div class="stack-form">
                 <label
-                  >Worker ID<input id="admin-worker-id" type="number" /></label
+                  >Choose a worker<select id="admin-worker-id"></select></label
                 ><label
                   >Decision<select id="admin-approved">
                     <option value="true">Approve</option>
@@ -706,9 +673,7 @@ No account data loaded yet.</pre
               <h3>Set worker availability</h3>
               <div class="stack-form">
                 <label
-                  >Worker ID<input
-                    id="availability-worker-id"
-                    type="number" /></label
+                  >Choose a worker<select id="availability-worker-id"></select></label
                 ><label
                   >Available<select id="availability-value">
                     <option value="true">Available</option>
@@ -727,9 +692,7 @@ No account data loaded yet.</pre
               <h3>Change complaint priority</h3>
               <div class="stack-form">
                 <label
-                  >Complaint ID<input
-                    id="priority-complaint-id"
-                    type="number" /></label
+                  >Choose a complaint<select id="priority-complaint-id"></select></label
                 ><label
                   >Priority<select id="priority-value">
                     <option>LOW</option>
@@ -778,6 +741,11 @@ No account data loaded yet.</pre
               <option>LOW</option>
               <option>HIGH</option>
               <option>CRITICAL</option>
+            </select></label
+          ><label
+            >Who pays?<select name="issueScope" required>
+              <option value="PUBLIC">Public issue — government pays</option>
+              <option value="HOUSEHOLD">Household issue — I pay</option>
             </select></label
           ><label
             >Latitude<input

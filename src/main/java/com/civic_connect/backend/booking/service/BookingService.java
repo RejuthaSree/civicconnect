@@ -8,6 +8,7 @@ import com.civic_connect.backend.common.exceptionHandler.ApiException;
 import com.civic_connect.backend.common.enums.BookingStatus;
 import com.civic_connect.backend.common.enums.Role;
 import com.civic_connect.backend.common.enums.VerificationStatus;
+import com.civic_connect.backend.common.enums.IssueScope;
 import com.civic_connect.backend.complaint.entity.Complaint;
 import com.civic_connect.backend.complaint.service.ComplaintService;
 import com.civic_connect.backend.user.entity.User;
@@ -89,9 +90,11 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<BookingResponse> mine(String email) {
         User user = complaints.current(email);
-        List<Booking> results = user.getRole() == Role.WORKER
-                ? workers.findByUser(user).map(worker -> bookings.findByWorkerIdOrderByCreatedAtDesc(worker.getId())).orElse(List.of())
-                : bookings.findByCitizenIdOrderByCreatedAtDesc(user.getId());
+        List<Booking> results = switch (user.getRole()) {
+            case WORKER -> workers.findByUser(user).map(worker -> bookings.findByWorkerIdOrderByCreatedAtDesc(worker.getId())).orElse(List.of());
+            case ADMIN -> bookings.findByIssueIssueScopeAndBookingStatusOrderByCreatedAtDesc(IssueScope.PUBLIC, BookingStatus.PAYMENT_PENDING);
+            default -> bookings.findByCitizenIdOrderByCreatedAtDesc(user.getId());
+        };
         return results.stream().map(this::response).toList();
     }
 
@@ -102,7 +105,7 @@ public class BookingService {
     public BookingResponse response(Booking booking) {
         return new BookingResponse(
                 booking.getId(), booking.getCitizen().getId(), booking.getWorker().getId(),
-                booking.getIssue().getId(), booking.getBookingStatus(), booking.getAmount(),
+                booking.getIssue().getId(), booking.getIssue().getIssueScope(), booking.getBookingStatus(), booking.getAmount(),
                 booking.isPaymentRequired(), booking.getCreatedAt(), booking.getUpdatedAt());
     }
 

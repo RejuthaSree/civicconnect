@@ -44,6 +44,10 @@ public class WorkforceAdminService {
   worker.setAvailable(available);
   return workerService.response(worker);
  }
+ public java.util.List<WorkerResponse> list(String email) {
+  requireAdmin(complaints.current(email));
+  return workers.findAllByOrderByIdDesc().stream().map(workerService::response).toList();
+ }
  private Worker get(Long id){
   return workers.findById(id).orElseThrow(()->
           new ApiException(HttpStatus.NOT_FOUND,"Worker not found"));

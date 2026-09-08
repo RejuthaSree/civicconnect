@@ -777,6 +777,28 @@ textarea:focus {
   color: #c6d2d4;
   font: 11px/1.65 var(--mono);
 }
+.account-summary,
+.profile-details {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px 14px;
+  color: #b6c6ca;
+}
+.profile-details strong {
+  color: #f3fafb;
+  font-size: 18px;
+}
+.profile-details p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.profile-photo {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+}
 .result-drawer {
   position: fixed;
   right: 22px;

@@ -12,4 +12,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     List<Assignment> findByWorkerIdAndCompletionStatusOrderByCompletedAtDesc(Long workerId,
                                                                              CompletionStatus completionStatus);
+
+    List<Assignment> findByWorkerIdOrderByAssignedAtDesc(Long workerId);
+
+    List<Assignment> findByComplaintReportedByIdOrderByAssignedAtDesc(Long citizenId);
 }

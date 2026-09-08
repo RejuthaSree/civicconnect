@@ -122,6 +122,17 @@ public class AssignmentService {
   }
   return response(a);
  }
+
+ @Transactional(readOnly = true)
+ public java.util.List<AssignmentResponse> mine(String email) {
+  User user = complaints.current(email);
+  java.util.List<Assignment> results = switch (user.getRole()) {
+   case WORKER -> workers.findByUser(user).map(worker -> assignments.findByWorkerIdOrderByAssignedAtDesc(worker.getId())).orElse(java.util.List.of());
+   case CITIZEN -> assignments.findByComplaintReportedByIdOrderByAssignedAtDesc(user.getId());
+   case ADMIN -> assignments.findAll();
+  };
+  return results.stream().map(this::response).toList();
+ }
  private Assignment get(Long id){
   return assignments.findById(id).orElseThrow(()->new ApiException(HttpStatus.NOT_FOUND, "Assignment not found"));
  }

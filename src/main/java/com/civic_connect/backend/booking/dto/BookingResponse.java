@@ -1,6 +1,7 @@
 package com.civic_connect.backend.booking.dto;
 
 import com.civic_connect.backend.common.enums.BookingStatus;
+import com.civic_connect.backend.common.enums.IssueScope;
 import java.time.Instant;
 
 public record BookingResponse(
@@ -8,6 +9,7 @@ public record BookingResponse(
         Long citizenId,
         Long workerId,
         Long issueId,
+        IssueScope issueScope,
         BookingStatus bookingStatus,
         Double amount,
         boolean paymentRequired,

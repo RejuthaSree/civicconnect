@@ -1,6 +1,5 @@
 package com.civic_connect.backend.user.controller;
 
-
 import com.civic_connect.backend.user.entity.User;
 import com.civic_connect.backend.user.Repository.UserRepository;
 import com.civic_connect.backend.user.dto.UserResponse;
@@ -20,21 +19,11 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserResponse>getCurrentUser(Authentication authentication){
-
-        String email= authentication.getName();
-        User user=userRepository.findByEmail(email)
-                .orElseThrow(()->new RuntimeException("user not found"));
-
-        UserResponse response = new UserResponse(
-
-                user.getUsername(),
-                user.getId(),
-                user.getProvider(),
-                user.getEmail()
-
-        );
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("user not found"));
+        return ResponseEntity.ok(new UserResponse(
+                user.getUsername(), user.getId(), user.getProvider(), user.getEmail(), user.getRole()));
     }
 }

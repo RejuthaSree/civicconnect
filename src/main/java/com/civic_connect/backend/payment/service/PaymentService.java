@@ -7,6 +7,7 @@ import com.civic_connect.backend.common.enums.BookingStatus;
 import com.civic_connect.backend.common.enums.PaymentSource;
 import com.civic_connect.backend.common.enums.PaymentStatus;
 import com.civic_connect.backend.common.enums.Role;
+import com.civic_connect.backend.common.enums.IssueScope;
 import com.civic_connect.backend.complaint.service.ComplaintService;
 import com.civic_connect.backend.payment.dto.*;
 import com.civic_connect.backend.payment.entity.Payment;
@@ -151,12 +152,18 @@ public class PaymentService {
     }
 
     private void validatePayer(User payer, Booking booking, PaymentSource source) {
-        if (source == PaymentSource.CITIZEN && !booking.getCitizen().getId().equals(payer.getId())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking citizen can make a citizen payment");
+        PaymentSource requiredSource = booking.getIssue().getIssueScope() == IssueScope.HOUSEHOLD
+                ? PaymentSource.CITIZEN : PaymentSource.GOVERNMENT;
+        if (source != requiredSource) {
+            String message = requiredSource == PaymentSource.CITIZEN
+                    ? "Household issues must be paid by the booking citizen"
+                    : "Public issues must be paid by an administrator using government funds";
+            throw new ApiException(HttpStatus.BAD_REQUEST, message);
         }
-        if (source == PaymentSource.GOVERNMENT && payer.getRole() != Role.ADMIN) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Government payments require ADMIN role");
-        }
+        if (requiredSource == PaymentSource.CITIZEN && !booking.getCitizen().getId().equals(payer.getId()))
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking citizen can pay for this household issue");
+        if (requiredSource == PaymentSource.GOVERNMENT && payer.getRole() != Role.ADMIN)
+            throw new ApiException(HttpStatus.FORBIDDEN, "Public-issue payments require ADMIN role");
     }
 
     private void validatePaymentEligibility(Booking booking, Double amount) {

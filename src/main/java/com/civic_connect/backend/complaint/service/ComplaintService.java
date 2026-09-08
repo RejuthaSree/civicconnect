@@ -3,7 +3,9 @@ package com.civic_connect.backend.complaint.service;
 import com.civic_connect.backend.common.enums.*;
 import com.civic_connect.backend.common.exceptionHandler.ApiException;
 import com.civic_connect.backend.complaint.entity.Complaint;
+import com.civic_connect.backend.complaint.entity.ComplaintVote;
 import com.civic_connect.backend.complaint.Repository.ComplaintRepository;
+import com.civic_connect.backend.complaint.Repository.ComplaintVoteRepository;
 import com.civic_connect.backend.complaint.dto.*;
 import com.civic_connect.backend.notification.entity.Notification;
 import com.civic_connect.backend.notification.repository.NotificationRepository;
@@ -25,16 +27,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class ComplaintService {
     private final ComplaintRepository complaints; private final UserRepository users;
     private final WorkerRepository workers; private final NotificationRepository notifications;
+    private final ComplaintVoteRepository votes;
 
     public ComplaintService(ComplaintRepository complaints,
                             UserRepository users,
                             WorkerRepository workers,
-                            NotificationRepository notifications) {
+                            NotificationRepository notifications,
+                            ComplaintVoteRepository votes) {
 
         this.complaints = complaints;
         this.users = users;
         this.workers = workers;
         this.notifications = notifications;
+        this.votes = votes;
     }
     public ComplaintResponse create(String email, CreateComplaintRequest request) {
         User reporter = current(email);
@@ -51,6 +56,7 @@ public class ComplaintService {
         c.setImageUrl(request.imageUrl());
         c.setIssueType(request.issueType());
         c.setPriority(request.priority());
+        c.setIssueScope(request.issueScope() == null ? IssueScope.PUBLIC : request.issueScope());
         c.setReportedBy(reporter);
         c = complaints.save(c);
         notifyMatchingWorkers(c);
@@ -69,8 +75,15 @@ public class ComplaintService {
         return complaints.findByReportedBy(current(email), pageable).map(this::toResponse);
     }
     public ComplaintResponse vote(String email, Long id) {
-        requireRole(current(email), Role.CITIZEN);
+        User voter = current(email);
+        requireRole(voter, Role.CITIZEN);
         Complaint c = get(id);
+        if (votes.existsByComplaintIdAndVoterId(c.getId(), voter.getId()))
+            throw new ApiException(HttpStatus.CONFLICT, "You have already upvoted this complaint");
+        ComplaintVote vote = new ComplaintVote();
+        vote.setComplaint(c);
+        vote.setVoter(voter);
+        votes.save(vote);
         c.setUpvotes(c.getUpvotes() + 1);
         return toResponse(c); }
 
@@ -141,5 +154,5 @@ public class ComplaintService {
     {
         return new ComplaintResponse(c.getId(),c.getTitle(),c.getDescription(),
                 c.getAddress(),c.getArea(),c.getCity(),c.getLatitude(),
-                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getReportedAt(),c.getResolvedAt(),c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId()); }
+                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getIssueScope(),c.getReportedAt(),c.getResolvedAt(),c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId()); }
 }

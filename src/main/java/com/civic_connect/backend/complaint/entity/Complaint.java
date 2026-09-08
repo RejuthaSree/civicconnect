@@ -10,6 +10,7 @@ import lombok.Setter;
 import java.time.Instant;
 import com.civic_connect.backend.common.enums.IssueType;
 import com.civic_connect.backend.common.enums.PriorityLevel;
+import com.civic_connect.backend.common.enums.IssueScope;
 
 @Entity
 @Table(name = "complaints")
@@ -45,6 +46,9 @@ public class Complaint {
     @Enumerated(EnumType.STRING)
     private IssueType issueType;
 
+    @Enumerated(EnumType.STRING)
+    private IssueScope issueScope;
+
     @Column(updatable = false)
     private Instant reportedAt;
     private Instant resolvedAt;
@@ -63,6 +67,8 @@ public class Complaint {
     void initializeDefaults() {
         if (status == null) status = ComplaintStatus.REPORTED;
         if (priority == null) priority = PriorityLevel.MEDIUM;
+        // Existing civic complaints remain public after this field is introduced.
+        if (issueScope == null) issueScope = IssueScope.PUBLIC;
         if (upvotes == null) upvotes = 0;
         if (reportedAt == null) reportedAt = Instant.now();
     }

@@ -19,4 +19,6 @@ public interface WorkerRepository extends JpaRepository<Worker, Long> {
     Page<Worker> findByAvailableTrueAndVerificationStatus(VerificationStatus status, Pageable pageable);
 
     Page<Worker> findBySkillAndAvailableTrueAndVerificationStatus(WorkerSkill skill, VerificationStatus status, Pageable pageable);
+
+    List<Worker> findAllByOrderByIdDesc();
 }
