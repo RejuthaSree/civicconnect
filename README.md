@@ -5,9 +5,9 @@ CivicConnect is a civic issue-resolution platform. Citizens can report household
 The project contains:
 
 - A Spring Boot + PostgreSQL backend in `src/`
-- A framework-free dark-mode frontend in `frontend/` using HTML, CSS, and JavaScript
+- frontend in `frontend/` using HTML, CSS, and JavaScript
 - Google OAuth sign-in with JWT API access
-- Razorpay Checkout with server-side signature verification
+- Razorpay Checkout with server-side signature verification(test api key-> after deployment live key)
 
 ## Features
 
@@ -19,20 +19,45 @@ The project contains:
 - Worker registration, verification, availability, portfolio, and reviews
 - Assignment workflow with acceptance, before/after proof, citizen verification, and reviews
 - Booking workflow with worker progress updates and completion confirmation
-- Real Razorpay Checkout; payment is marked successful only after server-side signature verification
+- Razorpay Checkout; payment is marked successful only after server-side signature verification
 - Notifications and payment history
 
 ## Prerequisites
 
+- docker destop
 - Java 21 or newer
 - PostgreSQL 14 or newer
 - Node.js 18 or newer
 - A Google OAuth client configured for local development
 - A Razorpay account and keys
+- 
+## 0.Docker setup and PostgreSQL Docker Commands
+
+Start PostgreSQL:
+
+```powershell/terminal
+docker start civic-connect-new
+```
+Connect to the database:
+
+```docker exec -it civic-connect-new psql -U postgres -d civicconnect```
+
+Useful PostgreSQL commands:
+
+```\dt```
+```SELECT * FROM complaints;```
+```SELECT id, username, email, role FROM users;```
+```SELECT id, user_id, skill, verification_status, available FROM workers;```
+```SELECT * FROM assignments;```
+```SELECT * FROM bookings;```
+```SELECT * FROM payments;```
+```SELECT * FROM complaint_votes;```
+```\q```
+
 
 ## 1. Create the database
 
-Open PostgreSQL and create the local database:
+Open PostgreSQL and create the database:
 
 ```sql
 CREATE DATABASE civicconnect;
