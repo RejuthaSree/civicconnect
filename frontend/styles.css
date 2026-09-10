@@ -622,6 +622,16 @@ textarea:focus {
   background: #28342c;
   color: var(--lime);
   font: 10px var(--mono);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+.badge.ai-suggested {
+  background: #1e3a5f;
+  color: #7cc4ff;
+}
+.badge.ai-confirmed {
+  background: #2a4d2e;
+  color: #b7f34b;
 }
 .empty-state {
   display: block;

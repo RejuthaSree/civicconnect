@@ -708,6 +708,42 @@
                 </button>
               </div>
             </article>
+            <article class="card">
+              <p class="eyebrow">AI classification</p>
+              <h3>Override AI classification</h3>
+              <div class="stack-form">
+                <label
+                  >Choose a complaint<select id="classify-complaint-id"></select></label
+                ><label
+                  >Category<select id="classify-category">
+                    <option>ROAD</option>
+                    <option>GARBAGE</option>
+                    <option>WATER</option>
+                    <option>ELECTRICITY</option>
+                    <option>DRAINAGE</option>
+                    <option>SAFETY</option>
+                    <option>OTHER</option>
+                  </select></label
+                ><label
+                  >Severity<select id="classify-priority">
+                    <option>LOW</option>
+                    <option>MEDIUM</option>
+                    <option>HIGH</option>
+                    <option>CRITICAL</option>
+                  </select></label
+                ><label
+                  >Apply to complaint<select id="classify-apply">
+                    <option value="true">Yes (update issue type &amp; priority)</option>
+                    <option value="false">No (AI record only)</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-classify"
+                >
+                  Save override
+                </button>
+              </div>
+            </article>
           </div>
         </section>
       </main>

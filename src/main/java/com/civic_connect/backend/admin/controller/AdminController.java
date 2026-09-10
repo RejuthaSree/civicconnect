@@ -1,5 +1,6 @@
 package com.civic_connect.backend.admin.controller;
 import com.civic_connect.backend.admin.service.WorkforceAdminService;
+import com.civic_connect.backend.common.enums.IssueType;
 import com.civic_connect.backend.common.enums.PriorityLevel;
 import com.civic_connect.backend.complaint.service.ComplaintService;
 import com.civic_connect.backend.complaint.dto.ComplaintResponse;
@@ -23,6 +24,14 @@ public class AdminController {
  public ComplaintResponse priority(Authentication a,@PathVariable("id") Long id,
                                    @RequestParam("priority") PriorityLevel priority) {
   return complaints.setPriority(a.getName(),id,priority);
+ }
+ @PatchMapping("/complaints/{id}/classification")
+ public ComplaintResponse overrideClassification(Authentication a,
+                                                  @PathVariable("id") Long id,
+                                                  @RequestParam("category") IssueType category,
+                                                  @RequestParam("priority") PriorityLevel priority,
+                                                  @RequestParam(name="apply", defaultValue="true") boolean applyToComplaint) {
+  return workforce.overrideClassification(a.getName(),id,category,priority,applyToComplaint);
  }
  @PostMapping("/workers/{id}/verification")
  public WorkerResponse verifyWorker(Authentication a,@PathVariable("id") Long id,

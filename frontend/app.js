@@ -55,6 +55,11 @@ const endpointGroups = [
         "Change complaint priority",
       ],
       [
+        "PATCH",
+        "/api/admin/complaints/{id}/classification?category=&priority=&apply=true",
+        "Override AI classification",
+      ],
+      [
         "POST",
         "/api/admin/workers/{id}/verification?approved=&notes=",
         "Verify worker",
@@ -184,7 +189,19 @@ function renderCards(target, items, renderer) {
   container.innerHTML = items.map(renderer).join("");
 }
 function complaintCard(c) {
-  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span><h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
+  let aiBadges = "";
+  if (c.aiCategory || c.aiSeverity) {
+    const confirmed = !!c.aiConfirmedByAdmin;
+    const pct = typeof c.aiConfidence === "number" ? Math.round(c.aiConfidence * 100) : null;
+    const cls = confirmed ? "badge ai-confirmed" : "badge ai-suggested";
+    const label = confirmed ? "Admin confirmed" : "AI suggested";
+    const parts = [];
+    if (c.aiCategory) parts.push(escapeHtml(c.aiCategory));
+    if (c.aiSeverity) parts.push(escapeHtml(c.aiSeverity));
+    if (pct !== null) parts.push(pct + "%");
+    aiBadges = `<span class="${cls}" title="${label}${c.aiSuggestedDepartment ? " · " + escapeHtml(c.aiSuggestedDepartment) : ""}">${label}${parts.length ? " · " + parts.join(" / ") : ""}</span>`;
+  }
+  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span>${aiBadges}<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
 }
 function workerCard(w) {
   return `<article class="data-card"><span class="badge">${escapeHtml(w.verificationStatus)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.skill)} · ${escapeHtml(w.serviceArea || "—")}</p><p>★ ${(w.rating ?? 0).toFixed?.(1) ?? w.rating} · ${w.completedTasks ?? 0} jobs</p><p class="hint">Worker ID ${w.id}</p></article>`;
@@ -228,6 +245,7 @@ async function loadAssignmentChoices() {
     fillSelect("admin-worker-id", adminWorkers, workerLabel);
     fillSelect("availability-worker-id", adminWorkers, workerLabel);
     fillSelect("priority-complaint-id", complaints, complaintLabel);
+    fillSelect("classify-complaint-id", complaints, complaintLabel);
     fillSelect("booking-issue-id", complaints, complaintLabel);
     const assignmentLabel = (a) => `#${a.id} — complaint #${a.complaintId} · ${a.completionStatus || "awaiting acceptance"}`;
     fillSelect("accept-assignment-id", assignments.filter((a) => !a.acceptedAt), assignmentLabel);
@@ -504,6 +522,14 @@ async function action(name) {
           { method: "PATCH" },
         );
         showResult("Complaint priority", data);
+        break;
+      case "admin-classify":
+        data = await api(
+          `/api/admin/complaints/${requireNumber("classify-complaint-id", "Complaint ID")}/classification?category=${value("classify-category")}&priority=${value("classify-priority")}&apply=${value("classify-apply") === "false" ? "false" : "true"}`,
+          { method: "PATCH" },
+        );
+        showResult("AI classification overridden", data);
+        showToast("Classification updated.");
         break;
       default:
         throw new Error("Action is not configured.");

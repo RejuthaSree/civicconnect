@@ -1,8 +1,13 @@
 package com.civic_connect.backend.admin.service;
 
+import com.civic_connect.backend.classifier.dto.AiClassificationResult;
+import com.civic_connect.backend.common.enums.IssueType;
+import com.civic_connect.backend.common.enums.PriorityLevel;
 import com.civic_connect.backend.common.enums.Role;
 import com.civic_connect.backend.common.enums.VerificationStatus;
 import com.civic_connect.backend.common.exceptionHandler.ApiException;
+import com.civic_connect.backend.complaint.dto.ComplaintResponse;
+import com.civic_connect.backend.complaint.entity.Complaint;
 import com.civic_connect.backend.complaint.service.ComplaintService;
 import com.civic_connect.backend.user.entity.User;
 import com.civic_connect.backend.worker.dto.WorkerResponse;
@@ -48,6 +53,31 @@ public class WorkforceAdminService {
   requireAdmin(complaints.current(email));
   return workers.findAllByOrderByIdDesc().stream().map(workerService::response).toList();
  }
+
+ public ComplaintResponse overrideClassification(String email, Long complaintId,
+                                                  IssueType category, PriorityLevel priority,
+                                                  boolean applyToComplaint) {
+  User admin = complaints.current(email);
+  requireAdmin(admin);
+  Complaint c = complaints.get(complaintId);
+  AiClassificationResult existing = complaints.parseAiClassification(c.getAiClassification());
+  AiClassificationResult updated = new AiClassificationResult(
+          category,
+          priority,
+          existing != null ? existing.suggestedDepartment() : null,
+          1.0,
+          existing != null && existing.aiSuggested(),
+          admin.getId()
+  );
+  String json = complaints.writeAiClassification(updated);
+  if (json != null) c.setAiClassification(json);
+  if (applyToComplaint) {
+   if (category != null) c.setIssueType(category);
+   if (priority != null) c.setPriority(priority);
+  }
+  return complaints.toResponse(c);
+ }
+
  private Worker get(Long id){
   return workers.findById(id).orElseThrow(()->
           new ApiException(HttpStatus.NOT_FOUND,"Worker not found"));

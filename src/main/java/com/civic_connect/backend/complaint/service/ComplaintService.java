@@ -1,5 +1,7 @@
 package com.civic_connect.backend.complaint.service;
 
+import com.civic_connect.backend.classifier.AiClassificationService;
+import com.civic_connect.backend.classifier.dto.AiClassificationResult;
 import com.civic_connect.backend.common.enums.*;
 import com.civic_connect.backend.common.exceptionHandler.ApiException;
 import com.civic_connect.backend.complaint.entity.Complaint;
@@ -28,18 +30,21 @@ public class ComplaintService {
     private final ComplaintRepository complaints; private final UserRepository users;
     private final WorkerRepository workers; private final NotificationRepository notifications;
     private final ComplaintVoteRepository votes;
+    private final AiClassificationService aiClassifier;
 
     public ComplaintService(ComplaintRepository complaints,
                             UserRepository users,
                             WorkerRepository workers,
                             NotificationRepository notifications,
-                            ComplaintVoteRepository votes) {
+                            ComplaintVoteRepository votes,
+                            AiClassificationService aiClassifier) {
 
         this.complaints = complaints;
         this.users = users;
         this.workers = workers;
         this.notifications = notifications;
         this.votes = votes;
+        this.aiClassifier = aiClassifier;
     }
     public ComplaintResponse create(String email, CreateComplaintRequest request) {
         User reporter = current(email);
@@ -59,6 +64,19 @@ public class ComplaintService {
         c.setIssueScope(request.issueScope() == null ? IssueScope.PUBLIC : request.issueScope());
         c.setReportedBy(reporter);
         c = complaints.save(c);
+        try {
+            AiClassificationResult ai = aiClassifier.classify(
+                    c.getTitle(), c.getDescription(), c.getAddress(), c.getArea(), c.getCity()
+            );
+            if (ai != null) {
+                String json = AiClassificationService.toJson(ai);
+                if (json != null) {
+                    c.setAiClassification(json);
+                    c = complaints.save(c);
+                }
+            }
+        } catch (Exception ignored) {
+        }
         notifyMatchingWorkers(c);
         return toResponse(c);
     }
@@ -150,9 +168,25 @@ public class ComplaintService {
         double a = Math.sin(lat/2)*Math.sin(lat/2)+Math.cos(Math.toRadians(c.getLatitude()))*Math.cos(Math.toRadians(w.getLatitude()))*Math.sin(lon/2)*Math.sin(lon/2);
         return 6371 * 2 * Math.atan2(Math.sqrt(a),Math.sqrt(1-a)) <= w.getWorkRadiusKm();
     }
+
+    public AiClassificationResult parseAiClassification(String rawJson) {
+        return AiClassificationService.fromJson(rawJson);
+    }
+
+    public String writeAiClassification(AiClassificationResult r) {
+        return AiClassificationService.toJson(r);
+    }
+
     public ComplaintResponse toResponse(Complaint c)
     {
+        AiClassificationResult ai = parseAiClassification(c.getAiClassification());
         return new ComplaintResponse(c.getId(),c.getTitle(),c.getDescription(),
                 c.getAddress(),c.getArea(),c.getCity(),c.getLatitude(),
-                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getIssueScope(),c.getReportedAt(),c.getResolvedAt(),c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId()); }
+                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getIssueScope(),c.getReportedAt(),c.getResolvedAt(),c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId(),
+                ai == null ? null : (ai.category() == null ? null : ai.category().name()),
+                ai == null ? null : (ai.severity() == null ? null : ai.severity().name()),
+                ai == null ? null : ai.suggestedDepartment(),
+                ai == null ? null : ai.confidence(),
+                ai == null ? null : ai.confirmedByAdminId());
+    }
 }
