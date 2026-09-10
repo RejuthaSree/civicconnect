@@ -136,12 +136,12 @@ public class ComplaintService {
     private WorkerSkill skillFor(IssueType type) {
         return switch (type) {
 
-        case ELECTRICITY -> WorkerSkill.ELECTRICIAN;
+            case ELECTRICITY -> WorkerSkill.ELECTRICIAN;
 
-        case WATER, DRAINAGE -> WorkerSkill.PLUMBER;
-        case GARBAGE -> WorkerSkill.SANITATION;
-        case ROAD -> WorkerSkill.ROAD_REPAIR;
-        default -> WorkerSkill.CONTRACTOR; }; }
+            case WATER, DRAINAGE -> WorkerSkill.PLUMBER;
+            case GARBAGE -> WorkerSkill.SANITATION;
+            case ROAD -> WorkerSkill.ROAD_REPAIR;
+            default -> WorkerSkill.CONTRACTOR; }; }
     private boolean inRange(Complaint c, Worker w) {
         if (c.getLatitude() == null || c.getLongitude() == null || w.getLatitude() == null || w.getLongitude() == null)
             return c.getArea().equalsIgnoreCase(w.getServiceArea());
