@@ -232,7 +232,7 @@
           <div class="card action-card">
             <div>
               <p class="eyebrow">Complaint actions</p>
-              <h3>Vote or verify a report</h3>
+              <h3>Vote, verify, or check duplicates</h3>
             </div>
             <div class="inline-form compact">
               <label
@@ -249,7 +249,12 @@
                 class="secondary-button endpoint-action"
                 data-endpoint="complaint-verify"
               >
-                Verify resolved
+                Verify resolved</button
+              ><button
+                class="secondary-button endpoint-action"
+                data-endpoint="complaint-duplicates"
+              >
+                Check duplicates
               </button>
             </div>
           </div>
@@ -744,6 +749,53 @@
                 </button>
               </div>
             </article>
+            <article class="card">
+              <p class="eyebrow">Duplicate detection</p>
+              <h3>Find potential duplicates</h3>
+              <div class="stack-form">
+                <label
+                  >Choose a complaint<select id="dup-detect-complaint-id"></select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-dup-detect"
+                >
+                  Scan for duplicates
+                </button>
+                <p class="hint">Scans title/description similarity + 2 km geo proximity.</p>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Duplicate grouping</p>
+              <h3>Group complaints as duplicates</h3>
+              <div class="stack-form">
+                <label
+                  >Complaint IDs (comma-separated)<input
+                    id="dup-group-ids"
+                    placeholder="e.g. 3,7,12"
+                /></label>
+                <button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-dup-group"
+                >
+                  Create duplicate group
+                </button>
+                <p class="hint">All IDs are tagged with the same DUP-N group key (lowest ID).</p>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Duplicate grouping</p>
+              <h3>Ungroup a complaint</h3>
+              <div class="stack-form">
+                <label
+                  >Choose a complaint<select id="dup-ungroup-complaint-id"></select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-dup-ungroup"
+                >
+                  Remove from duplicate group
+                </button>
+              </div>
+            </article>
           </div>
         </section>
       </main>
@@ -754,8 +806,21 @@
         <button class="close-modal" aria-label="Close">×</button>
         <p class="eyebrow">Citizen report</p>
         <h2>Report a civic issue</h2>
+        <div id="dup-warning" class="dup-warning hidden">
+          <p class="eyebrow accent">Similar reports exist</p>
+          <h3>
+            <span id="dup-warning-count">0</span> potential duplicate
+            <span id="dup-warning-plural">s</span> found nearby
+          </h3>
+          <p class="hint">
+            Your report may already exist. Review the matches below before you submit.
+            Duplicates slow down civic response — you can click any match to confirm, or
+            continue if your issue is different.
+          </p>
+          <div id="dup-warning-list" class="dup-warning-list"></div>
+        </div>
         <form id="complaint-form" class="form-grid modal-form">
-          <label>Title<input name="title" required /></label
+          <label>Title<input name="title" id="cf-title" required /></label
           ><label
             >Issue type<select name="issueType" required>
               <option>ROAD</option>
@@ -767,10 +832,10 @@
               <option>OTHER</option>
             </select></label
           ><label class="full"
-            >Description<textarea name="description" required></textarea></label
+            >Description<textarea name="description" id="cf-description" required></textarea></label
           ><label>Address<input name="address" required /></label
-          ><label>Area<input name="area" required /></label
-          ><label>City<input name="city" required /></label
+          ><label>Area<input name="area" id="cf-area" required /></label
+          ><label>City<input name="city" id="cf-city" required /></label
           ><label
             >Priority<select name="priority">
               <option>MEDIUM</option>
@@ -786,12 +851,14 @@
           ><label
             >Latitude<input
               name="latitude"
+              id="cf-latitude"
               type="number"
               step="any"
               required /></label
           ><label
             >Longitude<input
               name="longitude"
+              id="cf-longitude"
               type="number"
               step="any"
               required /></label
@@ -802,6 +869,17 @@
             Submit complaint <span>→</span>
           </button>
         </form>
+      </div>
+    </div>
+
+    <div id="dup-result-modal" class="modal" aria-hidden="true">
+      <div class="modal-panel">
+        <button class="close-modal" aria-label="Close">×</button>
+        <p class="eyebrow">Duplicate check results</p>
+        <h2 id="dup-result-title">Potential duplicate complaints</h2>
+        <div id="dup-result-body" class="data-grid empty-state">
+          No potential duplicates detected for this complaint.
+        </div>
       </div>
     </div>
     <div id="worker-modal" class="modal" aria-hidden="true">

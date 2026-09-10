@@ -25,6 +25,12 @@ public class ComplaintController {
                                                     Pageable pageable) {
         return service.list(status,pageable);
     }
+    @GetMapping("/{id}") public ComplaintResponse one(@PathVariable("id") Long id) {
+        return service.one(id);
+    }
+    @GetMapping("/{id}/with-duplicates") public ComplaintResponse oneWithDuplicates(@PathVariable("id") Long id) {
+        return service.oneWithDuplicates(id);
+    }
     @GetMapping("/mine") public Page<ComplaintResponse> mine(Authentication a,Pageable p) {
         return service.mine(a.getName(),p);
     }

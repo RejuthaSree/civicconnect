@@ -60,6 +60,21 @@ const endpointGroups = [
         "Override AI classification",
       ],
       [
+        "GET",
+        "/api/admin/complaints/{id}/duplicates",
+        "Detect potential duplicates",
+      ],
+      [
+        "POST",
+        "/api/admin/complaints/duplicates/group?ids=1,2,3",
+        "Group complaints as duplicates",
+      ],
+      [
+        "DELETE",
+        "/api/admin/complaints/{id}/duplicates/group",
+        "Ungroup a complaint from duplicate set",
+      ],
+      [
         "POST",
         "/api/admin/workers/{id}/verification?approved=&notes=",
         "Verify worker",
@@ -201,7 +216,17 @@ function complaintCard(c) {
     if (pct !== null) parts.push(pct + "%");
     aiBadges = `<span class="${cls}" title="${label}${c.aiSuggestedDepartment ? " · " + escapeHtml(c.aiSuggestedDepartment) : ""}">${label}${parts.length ? " · " + parts.join(" / ") : ""}</span>`;
   }
-  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span>${aiBadges}<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
+  let dupBadges = "";
+  if (c.duplicateGroupId) {
+    dupBadges += `<span class="badge duplicate-group" title="Duplicate group">Dup group · ${escapeHtml(c.duplicateGroupId)}</span>`;
+  }
+  if (c.potentialDuplicates && c.potentialDuplicates.length) {
+    const list = c.potentialDuplicates.map((d) =>
+      `#${d.id} ${escapeHtml(d.title)}${typeof d.similarity === "number" ? " (" + Math.round(d.similarity * 100) + "%)" : ""}${typeof d.distanceKm === "number" ? " · " + d.distanceKm.toFixed(1) + " km" : ""}`
+    ).join("; ");
+    dupBadges += `<span class="badge duplicate-warning" title="Potential matches: ${escapeHtml(list)}">⚠ ${c.potentialDuplicates.length} potential dup${c.potentialDuplicates.length === 1 ? "" : "es"}</span>`;
+  }
+  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span>${aiBadges}${dupBadges}<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
 }
 function workerCard(w) {
   return `<article class="data-card"><span class="badge">${escapeHtml(w.verificationStatus)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.skill)} · ${escapeHtml(w.serviceArea || "—")}</p><p>★ ${(w.rating ?? 0).toFixed?.(1) ?? w.rating} · ${w.completedTasks ?? 0} jobs</p><p class="hint">Worker ID ${w.id}</p></article>`;
@@ -246,6 +271,8 @@ async function loadAssignmentChoices() {
     fillSelect("availability-worker-id", adminWorkers, workerLabel);
     fillSelect("priority-complaint-id", complaints, complaintLabel);
     fillSelect("classify-complaint-id", complaints, complaintLabel);
+    fillSelect("dup-detect-complaint-id", complaints, complaintLabel);
+    fillSelect("dup-ungroup-complaint-id", complaints, complaintLabel);
     fillSelect("booking-issue-id", complaints, complaintLabel);
     const assignmentLabel = (a) => `#${a.id} — complaint #${a.complaintId} · ${a.completionStatus || "awaiting acceptance"}`;
     fillSelect("accept-assignment-id", assignments.filter((a) => !a.acceptedAt), assignmentLabel);
@@ -317,6 +344,14 @@ async function action(name) {
         );
         showResult("Complaint verification", data);
         showToast("Verification submitted.");
+        break;
+      }
+      case "complaint-duplicates": {
+        const targetId = requireNumber("complaint-action-id", "Complaint ID");
+        data = await api(`/api/complaints/${targetId}/with-duplicates`);
+        renderDuplicateResult(data);
+        openModal("dup-result-modal");
+        showResult(`Duplicate scan for #${targetId}`, data);
         break;
       }
       case "workers-browse": {
@@ -531,6 +566,38 @@ async function action(name) {
         showResult("AI classification overridden", data);
         showToast("Classification updated.");
         break;
+      case "admin-dup-detect": {
+        const targetId = requireNumber("dup-detect-complaint-id", "Complaint ID");
+        data = await api(`/api/admin/complaints/${targetId}/duplicates`);
+        const matches = data.potentialDuplicates || [];
+        if (matches.length) {
+          renderCards("complaint-list", [data, ...matches.map((m) => ({ ...(m), id: m.id, title: m.title, issueType: data.issueType, area: data.area, city: data.city, issueScope: data.issueScope, priority: data.priority, status: "POTENTIAL_DUPLICATE · sim " + Math.round((m.similarity || 0) * 100) + "%", upvotes: (typeof m.distanceKm === "number" ? (m.distanceKm.toFixed(1) + " km") : "area match"), reportedAt: data.reportedAt, imageUrl: null, aiCategory: null, aiSeverity: null, aiConfidence: null, aiConfirmedByAdmin: null, duplicateGroupId: null, potentialDuplicates: null, reporterId: data.reporterId, assignedWorkerId: null }))].map((x, i) => i === 0 ? x : ({ ...x, status: "Potential dup: " + (x.status || "").replace("POTENTIAL_DUPLICATE · ", "") })), complaintCard);
+        } else {
+          renderCards("complaint-list", [data], complaintCard);
+        }
+        showResult(`Duplicate detection (${matches.length} match${matches.length === 1 ? "" : "es"})`, data);
+        showToast(matches.length ? `Found ${matches.length} potential duplicate${matches.length === 1 ? "" : "s"}.` : "No potential duplicates found.");
+        break;
+      }
+      case "admin-dup-group": {
+        const raw = value("dup-group-ids");
+        if (!raw) throw new Error("Enter at least 2 complaint IDs separated by commas.");
+        const parts = raw.split(",").map((s) => s.trim()).filter((s) => s);
+        if (parts.some((s) => !/^\d+$/.test(s))) throw new Error("IDs must be numbers separated by commas.");
+        if (parts.length < 2) throw new Error("Group at least 2 complaint IDs.");
+        data = await api(`/api/admin/complaints/duplicates/group?ids=${encodeURIComponent(parts.join(","))}`, { method: "POST" });
+        renderCards("complaint-list", data, complaintCard);
+        showResult("Duplicate group created", data);
+        showToast(`Group ${data[0]?.duplicateGroupId || ""} updated with ${data.length} complaint${data.length === 1 ? "" : "s"}.`);
+        break;
+      }
+      case "admin-dup-ungroup": {
+        const targetId = requireNumber("dup-ungroup-complaint-id", "Complaint ID");
+        data = await api(`/api/admin/complaints/${targetId}/duplicates/group`, { method: "DELETE" });
+        showResult("Ungrouped complaint", data);
+        showToast("Complaint removed from duplicate group.");
+        break;
+      }
       default:
         throw new Error("Action is not configured.");
     }
@@ -715,6 +782,28 @@ function navigate(id) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function renderDuplicateResult(complaint) {
+  const matches = complaint?.potentialDuplicates || [];
+  $("dup-result-title").textContent = complaint?.id ? `Complaint #${complaint.id} · ${matches.length} potential dup${matches.length === 1 ? "" : "es"}` : "Potential duplicate complaints";
+  const items = [];
+  if (complaint?.id) {
+    items.push(complaintCard({ ...complaint, potentialDuplicates: null, status: "YOUR REPORT · " + (complaint.status || "") }));
+  }
+  for (const m of matches) {
+    const pct = typeof m.similarity === "number" ? Math.round(m.similarity * 100) : null;
+    const dist = typeof m.distanceKm === "number" ? m.distanceKm.toFixed(1) + " km" : "area match";
+    const badge = pct !== null ? `${pct}% similar · ${dist}` : dist;
+    items.push(complaintCard({ id: m.id, title: m.title, issueType: complaint?.issueType || "—", area: complaint?.area || "—", city: complaint?.city || "—", issueScope: complaint?.issueScope, priority: complaint?.priority, status: badge, upvotes: dist, reportedAt: complaint?.reportedAt, imageUrl: null, aiCategory: null, aiSeverity: null, aiConfidence: null, aiConfirmedByAdmin: null, duplicateGroupId: null, potentialDuplicates: null, reporterId: complaint?.reporterId, assignedWorkerId: null }));
+  }
+  if (!items.length) {
+    $("dup-result-body").className = "data-grid empty-state";
+    $("dup-result-body").textContent = "No potential duplicates detected for this complaint.";
+    return;
+  }
+  $("dup-result-body").className = "data-grid";
+  $("dup-result-body").innerHTML = items.join("");
+}
+
 function setupForms() {
   $("complaint-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -727,9 +816,17 @@ function setupForms() {
     try {
       const data = await api("/api/complaints", { method: "POST", body });
       showResult("Complaint created", data);
-      closeModals();
       event.currentTarget.reset();
-      showToast("Complaint submitted.");
+      const matches = data?.potentialDuplicates || [];
+      if (matches.length) {
+        showToast(`Complaint #${data.id} submitted · ${matches.length} potential dup${matches.length === 1 ? "" : "es"} found.`);
+        closeModals();
+        renderDuplicateResult(data);
+        openModal("dup-result-modal");
+      } else {
+        closeModals();
+        showToast("Complaint submitted.");
+      }
     } catch (error) {
       showToast(error.message, true);
     }

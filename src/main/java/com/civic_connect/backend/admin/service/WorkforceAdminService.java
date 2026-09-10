@@ -12,6 +12,9 @@ import com.civic_connect.backend.complaint.service.ComplaintService;
 import com.civic_connect.backend.user.entity.User;
 import com.civic_connect.backend.worker.dto.WorkerResponse;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.civic_connect.backend.worker.entity.Worker;
 import com.civic_connect.backend.worker.repository.WorkerRepository;
@@ -76,6 +79,34 @@ public class WorkforceAdminService {
    if (priority != null) c.setPriority(priority);
   }
   return complaints.toResponse(c);
+ }
+
+ public ComplaintResponse detectDuplicates(String email, Long complaintId) {
+  requireAdmin(complaints.current(email));
+  return complaints.oneWithDuplicates(complaintId);
+ }
+
+ public List<ComplaintResponse> groupDuplicates(String email, List<Long> ids) {
+  requireAdmin(complaints.current(email));
+  String groupId = complaints.groupDuplicates(ids);
+  return complaints.findByDuplicateGroup(groupId);
+ }
+
+ public List<ComplaintResponse> groupDuplicatesByIdsParam(String email, String idsCsv) {
+  if (idsCsv == null || idsCsv.isBlank())
+   throw new ApiException(HttpStatus.BAD_REQUEST, "ids query param required (comma-separated)");
+  List<Long> ids = Arrays.stream(idsCsv.split(","))
+          .map(String::trim)
+          .filter(s -> !s.isEmpty())
+          .map(Long::valueOf)
+          .collect(Collectors.toList());
+  return groupDuplicates(email, ids);
+ }
+
+ public ComplaintResponse ungroupDuplicate(String email, Long complaintId) {
+  requireAdmin(complaints.current(email));
+  complaints.ungroupDuplicate(complaintId);
+  return complaints.one(complaintId);
  }
 
  private Worker get(Long id){

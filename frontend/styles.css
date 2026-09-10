@@ -633,6 +633,14 @@ textarea:focus {
   background: #2a4d2e;
   color: #b7f34b;
 }
+.badge.duplicate-warning {
+  background: #54421a;
+  color: #ffd76a;
+}
+.badge.duplicate-group {
+  background: #4a2a4d;
+  color: #e8a6ff;
+}
 .empty-state {
   display: block;
   padding: 28px;
@@ -901,6 +909,45 @@ textarea:focus {
 }
 .go-to {
   cursor: pointer;
+}
+
+.dup-warning {
+  margin-bottom: 18px;
+  padding: 15px 17px;
+  border: 1px solid #54421a;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2a2013, #1a1d15);
+}
+.dup-warning h3 {
+  margin: 5px 0 6px;
+  color: #ffd76a;
+  font-size: 17px;
+}
+.dup-warning-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+.dup-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid #3d3520;
+  border-radius: 7px;
+  background: #171b12;
+}
+.dup-candidate-row strong {
+  font-size: 12px;
+}
+.dup-candidate-row p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #9caab0;
+}
+.dup-candidate-row .badge-row {
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 @media (max-width: 970px) {
   .login-gate {

@@ -17,8 +17,10 @@ import com.civic_connect.backend.worker.entity.Worker;
 import com.civic_connect.backend.worker.repository.WorkerRepository;
 
 import java.time.Instant;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -78,7 +80,13 @@ public class ComplaintService {
         } catch (Exception ignored) {
         }
         notifyMatchingWorkers(c);
-        return toResponse(c);
+        List<DuplicateCandidate> dupes;
+        try {
+            dupes = findPotentialDuplicates(c);
+        } catch (Exception ignored) {
+            dupes = new ArrayList<>();
+        }
+        return toResponse(c, dupes);
     }
     @Transactional(readOnly = true)
     public Page<ComplaintResponse> list(ComplaintStatus status, Pageable pageable) {
@@ -92,6 +100,19 @@ public class ComplaintService {
     {
         return complaints.findByReportedBy(current(email), pageable).map(this::toResponse);
     }
+
+    @Transactional(readOnly = true)
+    public ComplaintResponse one(Long id) {
+        return toResponse(get(id));
+    }
+
+    @Transactional(readOnly = true)
+    public ComplaintResponse oneWithDuplicates(Long id) {
+        Complaint c = get(id);
+        List<DuplicateCandidate> dupes = findPotentialDuplicates(c);
+        return toResponse(c, dupes);
+    }
+
     public ComplaintResponse vote(String email, Long id) {
         User voter = current(email);
         requireRole(voter, Role.CITIZEN);
@@ -162,11 +183,8 @@ public class ComplaintService {
             default -> WorkerSkill.CONTRACTOR; }; }
     private boolean inRange(Complaint c, Worker w) {
         if (c.getLatitude() == null || c.getLongitude() == null || w.getLatitude() == null || w.getLongitude() == null)
-            return c.getArea().equalsIgnoreCase(w.getServiceArea());
-        double lat = Math.toRadians(w.getLatitude()-c.getLatitude());
-        double lon = Math.toRadians(w.getLongitude()-c.getLongitude());
-        double a = Math.sin(lat/2)*Math.sin(lat/2)+Math.cos(Math.toRadians(c.getLatitude()))*Math.cos(Math.toRadians(w.getLatitude()))*Math.sin(lon/2)*Math.sin(lon/2);
-        return 6371 * 2 * Math.atan2(Math.sqrt(a),Math.sqrt(1-a)) <= w.getWorkRadiusKm();
+            return c.getArea() != null && c.getArea().equalsIgnoreCase(w.getServiceArea());
+        return haversineKm(c.getLatitude(), c.getLongitude(), w.getLatitude(), w.getLongitude()) <= w.getWorkRadiusKm();
     }
 
     public AiClassificationResult parseAiClassification(String rawJson) {
@@ -177,7 +195,134 @@ public class ComplaintService {
         return AiClassificationService.toJson(r);
     }
 
+    public List<DuplicateCandidate> findPotentialDuplicates(Complaint target) {
+        List<Complaint> pool = gatherCandidatePool(target);
+        List<DuplicateCandidate> results = new ArrayList<>();
+        String targetText = normalize(target.getTitle() + " " + target.getDescription());
+        for (Complaint other : pool) {
+            if (other.getId().equals(target.getId())) continue;
+            String otherText = normalize(other.getTitle() + " " + other.getDescription());
+            double similarity = diceCoefficient(targetText, otherText);
+            Double dist = null;
+            if (target.getLatitude() != null && target.getLongitude() != null
+                    && other.getLatitude() != null && other.getLongitude() != null) {
+                dist = haversineKm(target.getLatitude(), target.getLongitude(), other.getLatitude(), other.getLongitude());
+            }
+            boolean areaMatch = target.getArea() != null && other.getArea() != null
+                    && target.getArea().trim().equalsIgnoreCase(other.getArea().trim());
+            boolean geoOk = (dist != null && dist <= 2.0) || (dist == null && areaMatch);
+            if (similarity >= 0.45 && geoOk) {
+                results.add(new DuplicateCandidate(other.getId(), other.getTitle(),
+                        Math.round(similarity * 1000.0) / 1000.0, dist));
+            }
+        }
+        results.sort((a, b) -> Double.compare(
+                (b.similarity() == null ? 0.0 : b.similarity()),
+                (a.similarity() == null ? 0.0 : a.similarity())
+        ));
+        return results.stream().limit(5).collect(Collectors.toList());
+    }
+
+    private List<Complaint> gatherCandidatePool(Complaint target) {
+        Long id = target.getId() == null ? -1L : target.getId();
+        List<Complaint> pool = new ArrayList<>();
+        boolean hasGeo = target.getLatitude() != null && target.getLongitude() != null;
+        if (hasGeo) {
+            double delta = 2.0 / 111.0;
+            List<Complaint> geoCandidates = complaints.findCandidateDuplicatesByGeoBounds(
+                    id,
+                    target.getLatitude() - delta,
+                    target.getLatitude() + delta,
+                    target.getLongitude() - delta / Math.max(0.1, Math.cos(Math.toRadians(target.getLatitude()))),
+                    target.getLongitude() + delta / Math.max(0.1, Math.cos(Math.toRadians(target.getLatitude())))
+            );
+            pool.addAll(geoCandidates);
+        }
+        if (target.getArea() != null || target.getCity() != null) {
+            List<Complaint> areaCandidates = complaints.findCandidateDuplicatesByAreaOrCity(
+                    id, target.getArea(), target.getCity()
+            );
+            for (Complaint a : areaCandidates) {
+                if (!pool.contains(a)) pool.add(a);
+            }
+        }
+        if (pool.isEmpty()) {
+            pool = complaints.findAll(PageRequest.of(0, 100)).getContent();
+        }
+        return pool;
+    }
+
+    public String groupDuplicates(List<Long> ids) {
+        if (ids == null || ids.size() < 2)
+            throw new ApiException(HttpStatus.BAD_REQUEST, "At least 2 complaint IDs are required to group");
+        List<Complaint> list = new ArrayList<>();
+        long minId = Long.MAX_VALUE;
+        for (Long id : ids) {
+            Complaint c = get(id);
+            list.add(c);
+            if (c.getId() < minId) minId = c.getId();
+        }
+        String groupId = "DUP-" + minId;
+        for (Complaint c : list) c.setDuplicateGroupId(groupId);
+        return groupId;
+    }
+
+    public void ungroupDuplicate(Long id) {
+        Complaint c = get(id);
+        c.setDuplicateGroupId(null);
+    }
+
+    public List<ComplaintResponse> findByDuplicateGroup(String groupId) {
+        return complaints.findByDuplicateGroupId(groupId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    private static double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        double lat = Math.toRadians(lat2 - lat1);
+        double lon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(lat/2)*Math.sin(lat/2)
+                + Math.cos(Math.toRadians(lat1))*Math.cos(Math.toRadians(lat2))
+                * Math.sin(lon/2)*Math.sin(lon/2);
+        return 6371.0 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    private static String normalize(String s) {
+        if (s == null) return "";
+        return s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9\\s]", " ").replaceAll("\\s+", " ").trim();
+    }
+
+    private static double diceCoefficient(String a, String b) {
+        if (a == null || b == null) return 0.0;
+        if (a.equals(b)) return 1.0;
+        if (a.length() < 2 || b.length() < 2) return 0.0;
+        Map<String, Integer> bgA = bigrams(a);
+        Map<String, Integer> bgB = bigrams(b);
+        int totalA = bgA.values().stream().mapToInt(Integer::intValue).sum();
+        int totalB = bgB.values().stream().mapToInt(Integer::intValue).sum();
+        int intersect = 0;
+        for (Map.Entry<String, Integer> e : bgA.entrySet()) {
+            Integer other = bgB.get(e.getKey());
+            if (other != null) intersect += Math.min(e.getValue(), other);
+        }
+        return (2.0 * intersect) / (double) (totalA + totalB);
+    }
+
+    private static Map<String, Integer> bigrams(String s) {
+        Map<String, Integer> out = new HashMap<>();
+        for (int i = 0; i + 1 < s.length(); i++) {
+            String bg = s.substring(i, i + 2);
+            out.merge(bg, 1, Integer::sum);
+        }
+        return out;
+    }
+
     public ComplaintResponse toResponse(Complaint c)
+    {
+        return toResponse(c, null);
+    }
+
+    public ComplaintResponse toResponse(Complaint c, List<DuplicateCandidate> potentialDuplicates)
     {
         AiClassificationResult ai = parseAiClassification(c.getAiClassification());
         return new ComplaintResponse(c.getId(),c.getTitle(),c.getDescription(),
@@ -187,6 +332,8 @@ public class ComplaintService {
                 ai == null ? null : (ai.severity() == null ? null : ai.severity().name()),
                 ai == null ? null : ai.suggestedDepartment(),
                 ai == null ? null : ai.confidence(),
-                ai == null ? null : ai.confirmedByAdminId());
+                ai == null ? null : ai.confirmedByAdminId(),
+                c.getDuplicateGroupId(),
+                potentialDuplicates);
     }
 }
