@@ -21,6 +21,8 @@ The project contains:
 - Booking workflow with worker progress updates and completion confirmation
 - Razorpay Checkout; payment is marked successful only after server-side signature verification
 - Notifications and payment history
+- **AI complaint classification** powered by Google Gemini — suggests category, severity, suggested department, and confidence. Stored as JSON in each complaint; admin override promotes it to the live issue type and priority.
+- **Duplicate complaint detection** — combines text similarity (Sørensen–Dice bigram coefficient) with geographic proximity (Haversine, 2 km radius) or area/city match. Citizens see a post-submit warning panel with similar reports; admins approve grouping them under a `DUP-N` group key.
 
 ## Prerequisites
 
@@ -143,10 +145,15 @@ Open [http://localhost:5500](http://localhost:5500) in a browser. Do not open `i
 ### Administrator workflow
 
 1. Review reported civic issues and adjust their priority.
-2. View the protected workforce list, approve/reject worker applications, and set availability.
-3. Assign verified workers to public complaints.
-4. Monitor assignment and booking status.
-5. For a completed **public** issue, pay through Razorpay using the administrator/government flow.
+2. Review AI classification suggestions (category, severity, confidence, suggested department) and optionally **override** them to apply the AI's suggestion directly to the complaint's issue type and priority.
+3. Detect and resolve duplicate complaints:
+   - Scan any complaint to list the top-5 text/geo matches.
+   - Group two or more complaints under a single `DUP-{minId}` group key.
+   - Remove individual complaints from a group when they don't belong.
+4. View the protected workforce list, approve/reject worker applications, and set availability.
+5. Assign verified workers to public complaints.
+6. Monitor assignment and booking status.
+7. For a completed **public** issue, pay through Razorpay using the administrator/government flow.
 
 ## Payment rules
 
@@ -167,9 +174,11 @@ All `/api/**` routes require `Authorization: Bearer <JWT>` unless stated otherwi
 | --- | --- | --- |
 | GET | `/oauth2/authorization/google` | Start Google sign-in (browser redirect) |
 | GET | `/api/users/me` | Current user and role |
-| POST | `/api/complaints` | Create a complaint |
+| POST | `/api/complaints` | Create a complaint (response includes potential duplicates) |
 | GET | `/api/complaints` | Browse complaints |
 | GET | `/api/complaints/mine` | Current citizen's complaints |
+| GET | `/api/complaints/{id}` | Single complaint detail |
+| GET | `/api/complaints/{id}/with-duplicates` | Single complaint + potential duplicate matches (citizen-accessible) |
 | POST | `/api/complaints/{id}/vote` | Upvote once per citizen account |
 | POST | `/api/complaints/{id}/verify` | Verify a resolved complaint |
 | POST | `/api/workers/register` | Register a worker profile |
@@ -188,6 +197,10 @@ All `/api/**` routes require `Authorization: Bearer <JWT>` unless stated otherwi
 | GET | `/api/admin/workers` | Administrator workforce list |
 | POST | `/api/admin/workers/{id}/verification` | Approve or reject worker |
 | PATCH | `/api/admin/complaints/{id}/priority` | Change complaint priority |
+| PATCH | `/api/admin/complaints/{id}/classification?category=&priority=&apply=true` | Override AI classification (optionally writes to issue type + priority) |
+| GET | `/api/admin/complaints/{id}/duplicates` | Run duplicate scan for a complaint |
+| POST | `/api/admin/complaints/duplicates/group?ids=1,2,3` | Tag a list of complaints with the same `DUP-N` group key |
+| DELETE | `/api/admin/complaints/{id}/duplicates/group` | Remove one complaint from its duplicate group |
 
 ## Development checks
 
