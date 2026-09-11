@@ -1,8 +1,13 @@
 package com.civic_connect.backend.booking.controller;
 
-import com.civic_connect.backend.booking.service.BookingService;
 import com.civic_connect.backend.booking.dto.BookingResponse;
 import com.civic_connect.backend.booking.dto.CreateBookingRequest;
+import com.civic_connect.backend.booking.dto.GovernmentVerifyAndPayResponse;
+import com.civic_connect.backend.booking.service.BookingService;
+import com.civic_connect.backend.common.enums.PaymentSource;
+import com.civic_connect.backend.payment.dto.CreateRazorpayOrderRequest;
+import com.civic_connect.backend.payment.dto.RazorpayOrderResponse;
+import com.civic_connect.backend.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -20,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BookingController {
 
     private final BookingService service;
+    private final PaymentService paymentService;
 
-    public BookingController(BookingService service) {
+    public BookingController(BookingService service, PaymentService paymentService) {
         this.service = service;
+        this.paymentService = paymentService;
     }
 
     @PostMapping
@@ -55,5 +62,18 @@ public class BookingController {
     @PostMapping("/{id}/confirm-completion")
     public BookingResponse confirmCompletion(Authentication authentication, @PathVariable("id") Long id) {
         return service.confirmCompletion(authentication.getName(), id);
+    }
+
+    @PostMapping("/{id}/government-verify-and-pay")
+    public GovernmentVerifyAndPayResponse governmentVerifyAndPay(
+            Authentication authentication,
+            @PathVariable("id") Long id) {
+        BookingResponse verified = service.governmentVerify(authentication.getName(), id);
+        CreateRazorpayOrderRequest orderRequest = new CreateRazorpayOrderRequest(
+                verified.id(),
+                verified.amount(),
+                PaymentSource.GOVERNMENT);
+        RazorpayOrderResponse order = paymentService.createOrder(authentication.getName(), orderRequest);
+        return new GovernmentVerifyAndPayResponse(verified, order);
     }
 }

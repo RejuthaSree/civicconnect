@@ -1,11 +1,20 @@
 "use strict";
 
+const PRICING = {
+  ROAD: 2500, GARBAGE: 800, WATER: 1500, ELECTRICITY: 1200,
+  DRAINAGE: 1800, SAFETY: 3000, OTHER: 1000,
+  DEEP_CLEANING: 1500, WALL_REPAIR: 2000, PAINTING: 2500, PLUMBING: 1000
+};
+const PUBLIC_ISSUE_TYPES = new Set(["ROAD", "GARBAGE", "WATER", "ELECTRICITY", "DRAINAGE", "SAFETY", "OTHER"]);
+const HOUSEHOLD_ISSUE_TYPES = new Set(["DEEP_CLEANING", "WALL_REPAIR", "PAINTING", "PLUMBING"]);
+
 const state = {
   apiUrl: "http://localhost:8080",
   token: localStorage.getItem("civicconnect_token") || "",
   user: null,
   razorpayOrder: null,
   lastBookings: [],
+  lastComplaints: [],
 };
 const $ = (id) => document.getElementById(id);
 const value = (id) => $(id).value.trim();
@@ -269,8 +278,9 @@ async function loadAssignmentChoices() {
     ]);
     state.lastBookings = bookings;
     const complaints = complaintPage.content || [];
+    state.lastComplaints = complaints;
     const workers = workerPage.content || [];
-    const complaintLabel = (c) => `#${c.id} — ${c.title} (${c.status})`;
+    const complaintLabel = (c) => `#${c.id} — ${c.title} (${c.status}) · ${c.issueType}`;
     const workerLabel = (w) => `#${w.id} — ${w.name} · ${w.skill}`;
     fillSelect("request-complaint-id", complaints.filter((c) => !c.assignedWorkerId), complaintLabel);
     fillSelect("assign-complaint-id", complaints.filter((c) => !c.assignedWorkerId), complaintLabel);
@@ -296,6 +306,10 @@ async function loadAssignmentChoices() {
     fillSelect("booking-action-id", bookings.filter((b) => ["PENDING", "ACCEPTED", "IN_PROGRESS"].includes(b.bookingStatus)), bookingLabel);
     fillSelect("booking-confirm-id", bookings.filter((b) => b.bookingStatus === "COMPLETED"), bookingLabel);
     fillSelect("payment-booking-id", bookings.filter((b) => b.bookingStatus === "PAYMENT_PENDING"), bookingLabel);
+    fillSelect("gov-verify-booking-id", bookings.filter((b) => b.bookingStatus === "GOVERNMENT_VERIFICATION_PENDING"), bookingLabel);
+    if ($("booking-issue-id")) {
+      $("booking-issue-id").dispatchEvent(new Event("change"));
+    }
   } catch (error) {
     showToast("Could not load complaint and worker choices.", true);
   }
@@ -471,7 +485,6 @@ async function action(name) {
           body: {
             workerId: requireNumber("booking-worker-id", "Worker ID"),
             issueId: requireNumber("booking-issue-id", "Complaint ID"),
-            amount: requireNumber("booking-amount", "Amount"),
           },
         });
         showResult("Booking created", data);
@@ -513,8 +526,21 @@ async function action(name) {
           { method: "POST" },
         );
         showResult("Completion confirmed", data);
-        showToast("Completion confirmed. Payment is now available for this booking.");
-        loadAssignmentChoices();
+        if (data.issueScope === "HOUSEHOLD" && data.bookingStatus === "PAYMENT_PENDING") {
+          $("payment-booking-id").value = data.id;
+          $("payment-amount").value = data.amount;
+          $("payment-source").value = "CITIZEN";
+          $("payment-source").disabled = true;
+          loadAssignmentChoices();
+          showToast("Work confirmed. Paying securely now…");
+          await action("payment-order");
+        } else if (data.issueScope === "PUBLIC" && data.bookingStatus === "GOVERNMENT_VERIFICATION_PENDING") {
+          showToast("Completion confirmed. Awaiting government verification and payment.");
+          loadAssignmentChoices();
+        } else {
+          showToast("Completion confirmed.");
+          loadAssignmentChoices();
+        }
         break;
       case "payment-order":
         data = await api("/api/payments/create-order", {
@@ -647,6 +673,20 @@ async function action(name) {
         })), complaintCard);
         showResult("Escalated complaints", data);
         showToast(`${(data || []).length} escalated complaint${(data || []).length === 1 ? "" : "s"} loaded.`);
+        break;
+      }
+      case "admin-gov-verify-pay": {
+        const bid = requireNumber("gov-verify-booking-id", "Booking ID");
+        data = await api(`/api/bookings/${bid}/government-verify-and-pay`, { method: "POST" });
+        showResult("Government verify & pay", data);
+        if (data.razorpayOrder) {
+          state.razorpayOrder = data.razorpayOrder;
+          $("razorpay-order-id").value = data.razorpayOrder.orderId || "";
+          $("open-checkout").disabled = false;
+          showToast("Public work verified. Opening government Razorpay checkout…");
+          openRazorpayCheckout();
+        }
+        loadAssignmentChoices();
         break;
       }
       default:
@@ -861,6 +901,37 @@ function renderDuplicateResult(complaint) {
 }
 
 function setupForms() {
+  if ($("cf-issue-type")) {
+    $("cf-issue-type").addEventListener("change", (e) => {
+      const type = e.target.value;
+      const scopeSel = $("cf-issue-scope");
+      if (!scopeSel) return;
+      if (PUBLIC_ISSUE_TYPES.has(type)) {
+        scopeSel.value = "PUBLIC";
+      } else if (HOUSEHOLD_ISSUE_TYPES.has(type)) {
+        scopeSel.value = "HOUSEHOLD";
+      }
+    });
+    $("cf-issue-type").dispatchEvent(new Event("change"));
+  }
+  if ($("booking-issue-id")) {
+    $("booking-issue-id").addEventListener("change", (e) => {
+      const cid = Number(e.target.value);
+      const hint = $("booking-fixed-price");
+      if (!hint) return;
+      if (!Number.isFinite(cid)) {
+        hint.textContent = "Choose a complaint to see the fixed price.";
+        return;
+      }
+      const complaint = state.lastComplaints.find((c) => c.id === cid);
+      if (complaint && typeof PRICING[complaint.issueType] === "number") {
+        hint.textContent = `Fixed price: ₹${PRICING[complaint.issueType]} (${complaint.issueType} · ${complaint.issueScope === "HOUSEHOLD" ? "you pay" : "government pays"})`;
+        $("booking-amount").value = PRICING[complaint.issueType];
+      } else {
+        hint.textContent = "Price will be computed by the server.";
+      }
+    });
+  }
   $("complaint-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const fd = new FormData(event.currentTarget);

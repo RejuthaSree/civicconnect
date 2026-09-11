@@ -4,6 +4,7 @@ import com.civic_connect.backend.booking.dto.BookingResponse;
 import com.civic_connect.backend.booking.dto.CreateBookingRequest;
 import com.civic_connect.backend.booking.entity.Booking;
 import com.civic_connect.backend.booking.repository.BookingRepository;
+import com.civic_connect.backend.common.config.IssuePricingConfig;
 import com.civic_connect.backend.common.exceptionHandler.ApiException;
 import com.civic_connect.backend.common.enums.BookingStatus;
 import com.civic_connect.backend.common.enums.Role;
@@ -26,14 +27,17 @@ public class BookingService {
     private final BookingRepository bookings;
     private final WorkerRepository workers;
     private final ComplaintService complaints;
+    private final IssuePricingConfig issuePricingConfig;
 
     public BookingService(
             BookingRepository bookings,
             WorkerRepository workers,
-            ComplaintService complaints) {
+            ComplaintService complaints,
+            IssuePricingConfig issuePricingConfig) {
         this.bookings = bookings;
         this.workers = workers;
         this.complaints = complaints;
+        this.issuePricingConfig = issuePricingConfig;
     }
 
     public BookingResponse create(String email, CreateBookingRequest request) {
@@ -45,15 +49,22 @@ public class BookingService {
         }
 
         Worker worker = worker(request.workerId());
-        if (!worker.isAvailable() || worker.getVerificationStatus() != VerificationStatus.VERIFIED) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Only available verified workers can be booked");
+        boolean isPublicScope = issue.getIssueScope() == IssueScope.PUBLIC;
+        if (isPublicScope) {
+            if (!worker.isAvailable() || worker.getVerificationStatus() != VerificationStatus.VERIFIED) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Only available verified workers can be booked for public issues");
+            }
+        } else {
+            if (!worker.isAvailable()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Only available workers can be booked");
+            }
         }
 
         Booking booking = new Booking();
         booking.setCitizen(citizen);
         booking.setWorker(worker);
         booking.setIssue(issue);
-        booking.setAmount(request.amount());
+        booking.setAmount(issuePricingConfig.getFixedPrice(issue.getIssueType()));
         return response(bookings.save(booking));
     }
 
@@ -83,7 +94,22 @@ public class BookingService {
         if (!booking.getCitizen().getEmail().equals(email)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Only the booking citizen can confirm completion");
         }
-        transition(booking, BookingStatus.COMPLETED, BookingStatus.PAYMENT_PENDING);
+        boolean isPublicScope = booking.getIssue().getIssueScope() == IssueScope.PUBLIC;
+        BookingStatus next = isPublicScope
+                ? BookingStatus.GOVERNMENT_VERIFICATION_PENDING
+                : BookingStatus.PAYMENT_PENDING;
+        transition(booking, BookingStatus.COMPLETED, next);
+        return response(booking);
+    }
+
+    public BookingResponse governmentVerify(String email, Long bookingId) {
+        User admin = complaints.current(email);
+        requireRole(admin, Role.ADMIN);
+        Booking booking = booking(bookingId);
+        if (booking.getIssue().getIssueScope() != IssueScope.PUBLIC) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Government verification applies only to public-scope bookings");
+        }
+        transition(booking, BookingStatus.GOVERNMENT_VERIFICATION_PENDING, BookingStatus.PAYMENT_PENDING);
         return response(booking);
     }
 

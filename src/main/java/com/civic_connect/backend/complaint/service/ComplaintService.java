@@ -2,6 +2,7 @@ package com.civic_connect.backend.complaint.service;
 
 import com.civic_connect.backend.classifier.AiClassificationService;
 import com.civic_connect.backend.classifier.dto.AiClassificationResult;
+import com.civic_connect.backend.common.config.IssuePricingConfig;
 import com.civic_connect.backend.common.enums.*;
 import com.civic_connect.backend.common.exceptionHandler.ApiException;
 import com.civic_connect.backend.complaint.entity.Complaint;
@@ -34,13 +35,15 @@ public class ComplaintService {
     private final WorkerRepository workers; private final NotificationRepository notifications;
     private final ComplaintVoteRepository votes;
     private final AiClassificationService aiClassifier;
+    private final IssuePricingConfig issuePricingConfig;
 
     public ComplaintService(ComplaintRepository complaints,
                             UserRepository users,
                             WorkerRepository workers,
                             NotificationRepository notifications,
                             ComplaintVoteRepository votes,
-                            AiClassificationService aiClassifier) {
+                            AiClassificationService aiClassifier,
+                            IssuePricingConfig issuePricingConfig) {
 
         this.complaints = complaints;
         this.users = users;
@@ -48,10 +51,15 @@ public class ComplaintService {
         this.notifications = notifications;
         this.votes = votes;
         this.aiClassifier = aiClassifier;
+        this.issuePricingConfig = issuePricingConfig;
     }
     public ComplaintResponse create(String email, CreateComplaintRequest request) {
         User reporter = current(email);
         requireRole(reporter, Role.CITIZEN);
+        IssueScope effectiveScope = request.issueScope() == null
+                ? issuePricingConfig.getRequiredScope(request.issueType())
+                : request.issueScope();
+        issuePricingConfig.validateScopeForType(request.issueType(), effectiveScope);
         Complaint c = new Complaint();
         c.setTitle(request.title());
         c.setDescription(request.description());
@@ -64,7 +72,7 @@ public class ComplaintService {
         c.setImageUrl(request.imageUrl());
         c.setIssueType(request.issueType());
         c.setPriority(request.priority());
-        c.setIssueScope(request.issueScope() == null ? IssueScope.PUBLIC : request.issueScope());
+        c.setIssueScope(effectiveScope);
         c.setReportedBy(reporter);
         c = complaints.save(c);
         c.setSlaDeadline(SlaService.computeDeadline(c.getReportedAt(), c.getPriority()));
@@ -178,13 +186,15 @@ public class ComplaintService {
 
     private WorkerSkill skillFor(IssueType type) {
         return switch (type) {
-
             case ELECTRICITY -> WorkerSkill.ELECTRICIAN;
-
-            case WATER, DRAINAGE -> WorkerSkill.PLUMBER;
-            case GARBAGE -> WorkerSkill.SANITATION;
+            case WATER, DRAINAGE, PLUMBING -> WorkerSkill.PLUMBER;
+            case GARBAGE, DEEP_CLEANING -> WorkerSkill.SANITATION;
             case ROAD -> WorkerSkill.ROAD_REPAIR;
-            default -> WorkerSkill.CONTRACTOR; }; }
+            case PAINTING -> WorkerSkill.PAINTER;
+            case WALL_REPAIR -> WorkerSkill.CONTRACTOR;
+            default -> WorkerSkill.CONTRACTOR;
+        };
+    }
     private boolean inRange(Complaint c, Worker w) {
         if (c.getLatitude() == null || c.getLongitude() == null || w.getLatitude() == null || w.getLongitude() == null)
             return c.getArea() != null && c.getArea().equalsIgnoreCase(w.getServiceArea());
