@@ -23,6 +23,7 @@ The project contains:
 - Notifications and payment history
 - **AI complaint classification** powered by Google Gemini — suggests category, severity, suggested department, and confidence. Stored as JSON in each complaint; admin override promotes it to the live issue type and priority.
 - **Duplicate complaint detection** — combines text similarity (Sørensen–Dice bigram coefficient) with geographic proximity (Haversine, 2 km radius) or area/city match. Citizens see a post-submit warning panel with similar reports; admins approve grouping them under a `DUP-N` group key.
+- **SLA escalation with priority-tiered deadlines** — each complaint gets an `slaDeadline` based on its priority (CRITICAL 4h, HIGH 12h, MEDIUM 24h, LOW 48h), recomputed automatically when priority changes. A 5-minute scheduled job backfills deadlines for legacy rows, flags breaches, and auto-escalates (L1=Supervisor immediately on breach; L2=Admin after 2 additional hours). Notifications are sent to admins, assigned workers, and the reporting citizen. Admins can also escalate manually or list all currently escalated complaints. The government dashboard exposes SLA compliance %, per-priority breach counts, escalated counts, and per-priority breach breakdown.
 
 ## Prerequisites
 
@@ -144,16 +145,27 @@ Open [http://localhost:5500](http://localhost:5500) in a browser. Do not open `i
 
 ### Administrator workflow
 
-1. Review reported civic issues and adjust their priority.
+1. Review reported civic issues and adjust their priority (priority changes automatically recompute the SLA deadline).
 2. Review AI classification suggestions (category, severity, confidence, suggested department) and optionally **override** them to apply the AI's suggestion directly to the complaint's issue type and priority.
 3. Detect and resolve duplicate complaints:
    - Scan any complaint to list the top-5 text/geo matches.
    - Group two or more complaints under a single `DUP-{minId}` group key.
    - Remove individual complaints from a group when they don't belong.
-4. View the protected workforce list, approve/reject worker applications, and set availability.
-5. Assign verified workers to public complaints.
-6. Monitor assignment and booking status.
-7. For a completed **public** issue, pay through Razorpay using the administrator/government flow.
+4. Manage SLA escalations:
+   - Complaint cards display per-complaint SLA badges (on-track hours, SLA BREACH warning, SUPERVISOR / ADMIN escalation level).
+   - Manually escalate any complaint to Supervisor (level 1) or Admin (level 2), or use auto to bump it to the next tier.
+   - Load all currently escalated open complaints via the escalated-list tool.
+   - A 5-minute scheduled job automatically raises SUPERVISOR/ADMIN escalations when SLA deadlines are breached and sends in-app notifications.
+5. View the protected workforce list, approve/reject worker applications, and set availability.
+6. Assign verified workers to public complaints.
+7. Monitor assignment and booking status.
+8. Open the Government dashboard for live civic KPIs:
+   - Complaint counts (total, open, in progress), today/7-day activity, average resolution hours.
+   - SLA Performance: SLA met count, SLA compliance %, breach count, supervisor/admin escalation counts, inline breach-by-priority summary.
+   - Breaches-by-priority breakdown bar list.
+   - Workforce and payment KPIs, plus top complaint areas and status/category/priority mix.
+   - Filterable map of live complaint locations by status/priority/issue-type/area/date range.
+9. For a completed **public** issue, pay through Razorpay using the administrator/government flow.
 
 ## Payment rules
 
@@ -196,11 +208,15 @@ All `/api/**` routes require `Authorization: Bearer <JWT>` unless stated otherwi
 | POST | `/api/payments/verify` | Verify Razorpay payment signature |
 | GET | `/api/admin/workers` | Administrator workforce list |
 | POST | `/api/admin/workers/{id}/verification` | Approve or reject worker |
-| PATCH | `/api/admin/complaints/{id}/priority` | Change complaint priority |
+| PATCH | `/api/admin/complaints/{id}/priority` | Change complaint priority (also recomputes SLA deadline) |
 | PATCH | `/api/admin/complaints/{id}/classification?category=&priority=&apply=true` | Override AI classification (optionally writes to issue type + priority) |
 | GET | `/api/admin/complaints/{id}/duplicates` | Run duplicate scan for a complaint |
 | POST | `/api/admin/complaints/duplicates/group?ids=1,2,3` | Tag a list of complaints with the same `DUP-N` group key |
 | DELETE | `/api/admin/complaints/{id}/duplicates/group` | Remove one complaint from its duplicate group |
+| POST | `/api/admin/complaints/{id}/escalate?level=` | Manually escalate SLA (level 1=Supervisor, 2=Admin; omit for next-level auto) |
+| GET | `/api/admin/complaints/escalated` | List all open escalated complaints with their SLA info |
+| GET | `/api/admin/stats` | Government dashboard KPIs (totals, SLA breach/compliance/escalations, by-status/priority/type/area/top-area breakdowns) |
+| GET | `/api/admin/complaints/geo?status=&priority=&issueType=&area=&from=&to=` | Geo-located complaints for the government map with filters |
 
 ## Development checks
 
