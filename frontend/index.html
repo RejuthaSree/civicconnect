@@ -10,6 +10,17 @@
       href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="logged-out">
@@ -76,6 +87,9 @@
           </button>
           <button class="nav-link" data-view="admin" data-roles="ADMIN">
             <span>⚙</span>Admin console
+          </button>
+          <button class="nav-link" data-view="government" data-roles="ADMIN">
+            <span>◎</span>Govern
           </button>
         </nav>
         <div class="sidebar-bottom">
@@ -797,6 +811,101 @@
               </div>
             </article>
           </div>
+        </section>
+
+        <section id="government" class="view">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Municipal command centre</p>
+              <h2>Government dashboard</h2>
+              <p class="section-copy">
+                Track civic performance across complaints, workforce, and payments. The map filters
+                mirror active and their status, priority, and issue type.
+              </p>
+            </div>
+            <div class="inline-form">
+              <button id="gov-refresh" class="secondary-button">Refresh</button>
+            </div>
+          </div>
+
+          <div id="gov-kpis" class="stat-grid gov-kpis">
+            <article class="card"><span class="kpi-tag">Reports</span>
+              <h3 id="gov-kpi-total">—</h3>
+              <p>Total complaints</p>
+              <div class="kpi-row"><span>Open <b id="gov-kpi-open">—</b></span><span>In progress <b id="gov-kpi-inprog">—</b></span></div>
+            </article>
+            <article class="card"><span class="kpi-tag">Activity</span>
+              <h3 id="gov-kpi-res-day">—</h3>
+              <p>Resolved today · <b id="gov-kpi-res-7d">—</b> last 7 days</p>
+              <div class="kpi-row"><span>New today <b id="gov-kpi-new-day">—</b></span><span>New 7d <b id="gov-kpi-new-7d">—</b></span></div>
+            </article>
+            <article class="card"><span class="kpi-tag">Performance</span>
+              <h3 id="gov-kpi-avg">—</h3>
+              <p>Average resolution hours</p>
+              <div class="kpi-row danger"><span>SLA breached (48 h) <b id="gov-kpi-sla">—</b></span></div>
+            </article>
+            <article class="card"><span class="kpi-tag">Workforce</span>
+              <h3 id="gov-kpi-w-total">—</h3>
+              <p>Workers registered · <b id="gov-kpi-w-verified">—</b> verified</p>
+              <div class="kpi-row"><span>Active assignments <b id="gov-kpi-act-assn">—</b></span></div>
+            </article>
+            <article class="card"><span class="kpi-tag">Payments</span>
+              <h3 id="gov-kpi-pub-done">—</h3>
+              <p>Completed public assignments</p>
+              <div class="kpi-row danger"><span>Awaiting gov payment <b id="gov-kpi-pub-unpaid">—</b></span></div>
+            </article>
+          </div>
+
+          <div class="gov-breakdown">
+            <article class="card">
+              <p class="eyebrow">Hotspots</p>
+              <h3>Top complaint areas</h3>
+              <div id="gov-areas" class="gov-list empty-state">No area data yet.</div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Status</p>
+              <h3>Complaints by status</h3>
+              <div id="gov-status" class="gov-list empty-state">No status data yet.</div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Categories</p>
+              <h3>Complaints by issue type</h3>
+              <div id="gov-types" class="gov-list empty-state">No category data yet.</div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">Severity mix</p>
+              <h3>Complaints by priority</h3>
+              <div id="gov-priority" class="gov-list empty-state">No priority data yet.</div>
+            </article>
+          </div>
+
+          <article class="card">
+            <div class="section-heading tight">
+              <div>
+                <p class="eyebrow">Complaints map</p>
+                <h2>Live civic reports <span id="gov-map-count" class="chip chip-soft"></span></h2>
+              </div>
+              <div class="inline-form gov-map-controls">
+                <label>Status<select id="gov-f-status"><option value="">All</option>
+                  <option>REPORTED</option><option>UNDER_REVIEW</option><option>ASSIGNED</option>
+                  <option>WORK_ACCEPTED</option><option>IN_PROGRESS</option><option>WORK_COMPLETED</option>
+                  <option>CITIZEN_VERIFICATION</option><option>PAYMENT_APPROVED</option><option>RESOLVED</option>
+                  <option>REJECTED</option></select></label>
+                <label>Priority<select id="gov-f-priority"><option value="">All</option>
+                  <option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+                <label>Type<select id="gov-f-type"><option value="">All</option>
+                  <option>ROAD</option><option>GARBAGE</option><option>WATER</option>
+                  <option>ELECTRICITY</option><option>DRAINAGE</option><option>SAFETY</option><option>OTHER</option></select></label>
+                <label>Area<input id="gov-f-area" placeholder="e.g. Indiranagar" /></label>
+                <button id="gov-map-refresh" class="secondary-button">Apply filters</button>
+              </div>
+            </div>
+            <div id="gov-map" class="gov-map" aria-label="Map of civic complaint locations"></div>
+            <p class="hint">
+              Marker color reflects complaint status: open=amber, in progress=blue, resolved=green,
+              rejected=red, unknown=gray. Click a marker to open the complaint in the workspace.
+            </p>
+          </article>
         </section>
       </main>
     </div>

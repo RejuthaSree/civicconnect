@@ -949,6 +949,171 @@ textarea:focus {
   margin-left: auto;
   flex: 0 0 auto;
 }
+
+.gov-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+.gov-kpis article {
+  position: relative;
+  padding: 18px;
+}
+.gov-kpis h3 {
+  margin: 6px 0 4px;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+.gov-kpis p {
+  margin: 0;
+  color: #9caab0;
+  font-size: 13px;
+}
+.kpi-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #1f2528;
+  color: #c8d4d8;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.kpi-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #2a3033;
+  color: #9caab0;
+  font-size: 12px;
+}
+.kpi-row b {
+  color: #e7eef1;
+  font-weight: 600;
+}
+.kpi-row.danger b {
+  color: #ff8a8a;
+}
+
+.gov-breakdown {
+  margin-top: 18px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.gov-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.gov-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.gov-row-head strong {
+  font-size: 13px;
+  color: #e7eef1;
+}
+.gov-row-head span {
+  font-size: 12px;
+  color: #a7b3b9;
+  font-variant-numeric: tabular-nums;
+}
+.gov-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #1f2528;
+  overflow: hidden;
+}
+.gov-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #84cc16);
+  border-radius: 999px;
+}
+.gov-row-sub {
+  display: block;
+  margin-top: 4px;
+  color: #85949b;
+  font-size: 11px;
+}
+
+.section-heading.tight {
+  margin: 0 0 12px;
+}
+.section-copy {
+  color: #9caab0;
+  margin-top: 4px;
+  max-width: 52rem;
+}
+.gov-map-controls {
+  flex-wrap: wrap;
+}
+.gov-map-controls label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #9caab0;
+}
+.gov-map-controls label select, .gov-map-controls label input {
+  width: 150px;
+}
+.gov-map {
+  margin-top: 8px;
+  height: 520px;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #14181a;
+  border: 1px solid #2a3033;
+}
+.gov-popup {
+  min-width: 220px;
+  max-width: 280px;
+  font-family: "Manrope", system-ui, sans-serif;
+}
+.gov-popup h3 {
+  margin: 4px 0 8px;
+  font-size: 15px;
+  color: #0f1416;
+}
+.gov-popup ul {
+  margin: 6px 0 10px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  color: #374151;
+}
+.gov-popup .eyebrow {
+  color: #4b5563;
+  margin: 0;
+}
+.gov-popup .primary-button {
+  width: 100%;
+  justify-content: center;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.chip-soft {
+  background: #1f2528;
+  color: #c8d4d8;
+}
 @media (max-width: 970px) {
   .login-gate {
     grid-template-columns: 1fr;

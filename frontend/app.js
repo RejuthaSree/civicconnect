@@ -772,14 +772,16 @@ function navigate(id) {
     bookings: "Services, coordinated.",
     payments: "Every payment, accounted for.",
     notifications: "What needs your attention.",
+    government: "Municipal command centre.",
     admin: "Government operations console.",
     endpoints: "Backend API, fully connected.",
   };
   $("page-title").textContent = title[id];
   $("section-kicker").textContent =
-    id === "dashboard" ? "Command centre" : "CivicConnect workspace";
+    id === "dashboard" || id === "government" ? "Command centre" : "CivicConnect workspace";
   document.querySelector(".sidebar").classList.remove("open");
   window.scrollTo({ top: 0, behavior: "smooth" });
+  if (id === "government") refreshGovernmentView();
 }
 
 function renderDuplicateResult(complaint) {
@@ -952,8 +954,163 @@ async function initialise() {
   $("mobile-menu").addEventListener("click", () =>
     document.querySelector(".sidebar").classList.toggle("open"),
   );
+  if ($("gov-refresh")) $("gov-refresh").addEventListener("click", refreshGovernmentStats);
+  if ($("gov-map-refresh")) $("gov-map-refresh").addEventListener("click", refreshGovernmentMap);
   setupForms();
   if (state.token) await loadSignedInUser();
+}
+
+let govMap = null;
+let govMarkers = [];
+const STATUS_PALETTE = {
+  REPORTED: "#f59e0b",
+  UNDER_REVIEW: "#f59e0b",
+  ASSIGNED: "#3b82f6",
+  WORK_ACCEPTED: "#3b82f6",
+  IN_PROGRESS: "#3b82f6",
+  WORK_COMPLETED: "#3b82f6",
+  CITIZEN_VERIFICATION: "#3b82f6",
+  PAYMENT_APPROVED: "#22c55e",
+  RESOLVED: "#22c55e",
+  REJECTED: "#ef4444",
+};
+function colorForStatus(s) { return STATUS_PALETTE[s] || "#94a3b8"; }
+function pinDotSvg(color) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 36'><path fill='${color}' stroke='rgba(0,0,0,0.25)' stroke-width='1.2' d='M14 2C7.925 2 3 6.925 3 13c0 8 11 21 11 21s11-13 11-21C25 6.925 20.075 2 14 2z'/><circle cx='14' cy='13' r='4.2' fill='white'/></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+async function refreshGovernmentView() {
+  if (state.user?.role !== "ADMIN") return;
+  await Promise.all([refreshGovernmentStats(), refreshGovernmentMap()]);
+}
+async function refreshGovernmentStats() {
+  if (!state.token) return;
+  try {
+    const s = await api("/api/admin/stats");
+    $("gov-kpi-total").textContent = s.totalComplaints ?? 0;
+    $("gov-kpi-open").textContent = s.openComplaints ?? 0;
+    $("gov-kpi-inprog").textContent = s.inProgressComplaints ?? 0;
+    $("gov-kpi-res-day").textContent = s.resolvedToday ?? 0;
+    $("gov-kpi-res-7d").textContent = s.resolvedLast7Days ?? 0;
+    $("gov-kpi-new-day").textContent = s.reportedToday ?? 0;
+    $("gov-kpi-new-7d").textContent = s.reportedLast7Days ?? 0;
+    $("gov-kpi-avg").textContent = s.avgResolutionHours != null ? `${s.avgResolutionHours} h` : "—";
+    $("gov-kpi-sla").textContent = s.slaBreached ?? 0;
+    $("gov-kpi-w-total").textContent = s.totalWorkers ?? 0;
+    $("gov-kpi-w-verified").textContent = s.verifiedWorkers ?? 0;
+    $("gov-kpi-act-assn").textContent = s.activeAssignments ?? 0;
+    $("gov-kpi-pub-done").textContent = s.completedPublicAssignments ?? 0;
+    $("gov-kpi-pub-unpaid").textContent = s.unpaidPublicAssignments ?? 0;
+    renderBreakdown("gov-areas", (s.topAreas || []).map(a => [
+      a.area, `${a.complaints} total`, `${a.open || 0} open · ${a.resolved || 0} resolved`
+    ]));
+    renderBreakdown("gov-status", Object.entries(s.countsByStatus || {}).map(([k, v]) => [k, `${v} complaints`, null]));
+    renderBreakdown("gov-types", Object.entries(s.countsByIssueType || {}).map(([k, v]) => [k, `${v} complaints`, null]));
+    renderBreakdown("gov-priority", Object.entries(s.countsByPriority || {}).map(([k, v]) => [k, `${v} complaints`, null]));
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+function renderBreakdown(elId, rows) {
+  const el = $(elId);
+  if (!rows || !rows.length) {
+    el.className = "gov-list empty-state";
+    el.textContent = "No data yet.";
+    return;
+  }
+  el.className = "gov-list";
+  const max = Math.max(...rows.map((r) => typeof r[1] === "number" ? r[1] : 1), 1);
+  el.innerHTML = rows.map(([label, big, subtitle]) => {
+    const numeric = typeof big === "number";
+    const val = numeric ? big : big;
+    const pct = numeric ? Math.min(100, Math.round((big / max) * 100)) : null;
+    return `<div class="gov-row">
+      <div class="gov-row-head"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(val))}</span></div>
+      ${pct !== null ? `<div class="gov-bar"><div style="width:${pct}%"></div></div>` : ""}
+      ${subtitle ? `<small class="gov-row-sub">${escapeHtml(subtitle)}</small>` : ""}
+    </div>`;
+  }).join("");
+}
+async function refreshGovernmentMap() {
+  if (!state.token || !$("gov-map")) return;
+  if (!govMap) {
+    if (typeof L === "undefined") {
+      showToast("Leaflet is not loaded yet.", true);
+      return;
+    }
+    govMap = L.map("gov-map", { scrollWheelZoom: false }).setView([20.5937, 78.9629], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(govMap);
+    // Invalidate layout when the map container becomes visible.
+    const observer = new ResizeObserver(() => govMap.invalidateSize());
+    observer.observe($("gov-map"));
+  } else {
+    govMarkers.forEach((m) => govMap.removeLayer(m));
+    govMarkers = [];
+  }
+  const params = new URLSearchParams();
+  const s = $("gov-f-status")?.value;
+  const p = $("gov-f-priority")?.value;
+  const t = $("gov-f-type")?.value;
+  const a = $("gov-f-area")?.value?.trim();
+  if (s) params.set("status", s);
+  if (p) params.set("priority", p);
+  if (t) params.set("issueType", t);
+  if (a) params.set("area", a);
+  const qs = params.toString();
+  let items = [];
+  try {
+    items = await api(`/api/admin/complaints/geo${qs ? "?" + qs : ""}`) || [];
+  } catch (e) {
+    showToast(e.message, true);
+    return;
+  }
+  $("gov-map-count").textContent = `${items.length} location${items.length === 1 ? "" : "s"}`;
+  const bounds = [];
+  for (const c of items) {
+    if (!c?.latitude || !c?.longitude) continue;
+    const color = colorForStatus(c.status || "");
+    const icon = L.icon({
+      iconUrl: pinDotSvg(color),
+      iconSize: [26, 34],
+      iconAnchor: [13, 33],
+      popupAnchor: [0, -30]
+    });
+    const marker = L.marker([c.latitude, c.longitude], { icon, title: `#${c.id} ${c.title || ""}` });
+    const body = `<div class="gov-popup">
+      <p class="eyebrow">Complaint #${c.id} · ${escapeHtml(c.priority || "—")}</p>
+      <h3>${escapeHtml(c.title || "Untitled")}</h3>
+      <ul>
+        <li><b>Status:</b> ${escapeHtml(c.status || "—")}</li>
+        <li><b>Type:</b> ${escapeHtml(c.issueType || "—")}</li>
+        <li><b>Area:</b> ${escapeHtml(c.area || "—")}, ${escapeHtml(c.city || "—")}</li>
+        <li><b>Reported:</b> ${escapeHtml(c.reportedAt || "—")}</li>
+      </ul>
+      <button class="primary-button gov-popup-open" data-id="${c.id}">Open complaint →</button>
+    </div>`;
+    marker.bindPopup(body);
+    marker.on("popupopen", (e) => {
+      const btn = e.popup._contentNode?.querySelector?.(".gov-popup-open");
+      if (btn) btn.addEventListener("click", () => {
+        marker.closePopup();
+        navigate("complaints");
+        setTimeout(() => {
+          showToast(`Opening complaint #${btn.dataset.id}`);
+        }, 150);
+      });
+    });
+    marker.addTo(govMap);
+    govMarkers.push(marker);
+    bounds.push([c.latitude, c.longitude]);
+  }
+  govMap.invalidateSize();
+  if (bounds.length) {
+    const b = L.latLngBounds(bounds);
+    govMap.fitBounds(b, { padding: [28, 28], maxZoom: 14 });
+  }
 }
 
 document.addEventListener("DOMContentLoaded", initialise);
