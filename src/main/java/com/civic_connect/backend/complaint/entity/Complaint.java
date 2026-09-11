@@ -72,6 +72,7 @@ public class Complaint {
         // Existing civic complaints remain public after this field is introduced.
         if (issueScope == null) issueScope = IssueScope.PUBLIC;
         if (upvotes == null) upvotes = 0;
+        if (escalationLevel == null) escalationLevel = 0;
         if (reportedAt == null) reportedAt = Instant.now();
     }
 }

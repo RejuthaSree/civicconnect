@@ -5,6 +5,7 @@ const state = {
   token: localStorage.getItem("civicconnect_token") || "",
   user: null,
   razorpayOrder: null,
+  lastBookings: [],
 };
 const $ = (id) => document.getElementById(id);
 const value = (id) => $(id).value.trim();
@@ -266,6 +267,7 @@ async function loadAssignmentChoices() {
       api("/api/bookings/mine"),
       state.user.role === "ADMIN" ? api("/api/admin/workers") : Promise.resolve([]),
     ]);
+    state.lastBookings = bookings;
     const complaints = complaintPage.content || [];
     const workers = workerPage.content || [];
     const complaintLabel = (c) => `#${c.id} — ${c.title} (${c.status})`;
@@ -474,6 +476,7 @@ async function action(name) {
         });
         showResult("Booking created", data);
         showToast("Booking created.");
+        loadAssignmentChoices();
         break;
       case "bookings-mine":
         data = await api("/api/bookings/mine");
@@ -486,6 +489,7 @@ async function action(name) {
           { method: "POST" },
         );
         showResult("Booking accepted", data);
+        loadAssignmentChoices();
         break;
       case "booking-start":
         data = await api(
@@ -493,6 +497,7 @@ async function action(name) {
           { method: "POST" },
         );
         showResult("Booking started", data);
+        loadAssignmentChoices();
         break;
       case "booking-complete":
         data = await api(
@@ -500,6 +505,7 @@ async function action(name) {
           { method: "POST" },
         );
         showResult("Booking completed", data);
+        loadAssignmentChoices();
         break;
       case "booking-confirm":
         data = await api(
@@ -507,6 +513,8 @@ async function action(name) {
           { method: "POST" },
         );
         showResult("Completion confirmed", data);
+        showToast("Completion confirmed. Payment is now available for this booking.");
+        loadAssignmentChoices();
         break;
       case "payment-order":
         data = await api("/api/payments/create-order", {
@@ -537,6 +545,7 @@ async function action(name) {
           data.success ? "Payment verified." : "Payment verification failed.",
           !data.success,
         );
+        if (data.success) loadAssignmentChoices();
         break;
       case "payments-history":
         data = await api("/api/payments/history");
@@ -665,7 +674,10 @@ function paymentFriendlyError(message) {
 }
 
 function renderBookings(bookings) {
+  state.lastBookings = bookings;
   renderCards("booking-list", bookings, bookingCard);
+  const bookingLabel = (b) => `#${b.id} — complaint #${b.issueId} · ₹${b.amount} · ${b.bookingStatus}`;
+  fillSelect("payment-booking-id", bookings.filter((b) => b.bookingStatus === "PAYMENT_PENDING"), bookingLabel);
   document.querySelectorAll(".pay-booking").forEach((button) =>
     button.addEventListener("click", () => {
       $("payment-booking-id").value = button.dataset.id;
@@ -993,6 +1005,24 @@ async function initialise() {
   $("after-image-url").addEventListener("input", () =>
     updateImagePreview("after-image-url", "after-preview", "After image"),
   );
+  if ($("payment-booking-id")) {
+    $("payment-booking-id").addEventListener("change", () => {
+      const bid = Number($("payment-booking-id").value);
+      if (!Number.isFinite(bid)) {
+        $("payment-amount").value = "";
+        $("payment-source").disabled = false;
+        return;
+      }
+      const match = state.lastBookings.find((b) => b.id === bid);
+      if (match) {
+        $("payment-amount").value = match.amount == null ? "" : match.amount;
+        $("payment-source").value = match.issueScope === "HOUSEHOLD" ? "CITIZEN" : "GOVERNMENT";
+        $("payment-source").disabled = true;
+      } else {
+        $("payment-source").disabled = false;
+      }
+    });
+  }
   $("mobile-menu").addEventListener("click", () =>
     document.querySelector(".sidebar").classList.toggle("open"),
   );

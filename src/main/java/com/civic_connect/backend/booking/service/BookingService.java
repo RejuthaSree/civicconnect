@@ -92,7 +92,7 @@ public class BookingService {
         User user = complaints.current(email);
         List<Booking> results = switch (user.getRole()) {
             case WORKER -> workers.findByUser(user).map(worker -> bookings.findByWorkerIdOrderByCreatedAtDesc(worker.getId())).orElse(List.of());
-            case ADMIN -> bookings.findByIssueIssueScopeAndBookingStatusOrderByCreatedAtDesc(IssueScope.PUBLIC, BookingStatus.PAYMENT_PENDING);
+            case ADMIN -> bookings.findByIssueIssueScopeOrderByCreatedAtDesc(IssueScope.PUBLIC);
             default -> bookings.findByCitizenIdOrderByCreatedAtDesc(user.getId());
         };
         return results.stream().map(this::response).toList();

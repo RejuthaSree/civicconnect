@@ -80,11 +80,8 @@ public class SlaService {
     public List<ComplaintResponseEscalation> listEscalated(String email) {
         requireAdmin(current(email));
         List<ComplaintResponseEscalation> out = new ArrayList<>();
-        for (Complaint c : complaints.findAll()) {
-            Integer lvl = c.getEscalationLevel();
-            if (lvl != null && lvl > 0) {
-                out.add(buildEscalation(c));
-            }
+        for (Complaint c : complaints.findAllEscalated()) {
+            out.add(buildEscalation(c));
         }
         out.sort((a, b) -> Integer.compare(
                 b.escalationLevel() == null ? 0 : b.escalationLevel(),

@@ -74,4 +74,7 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     @Query("SELECT COUNT(c) FROM Complaint c WHERE c.escalationLevel IS NOT NULL AND c.escalationLevel >= :level AND c.status NOT IN (com.civic_connect.backend.common.enums.ComplaintStatus.RESOLVED, com.civic_connect.backend.common.enums.ComplaintStatus.REJECTED)")
     long countEscalatedAtLevel(@Param("level") int level);
+
+    @Query("SELECT c FROM Complaint c WHERE c.escalationLevel IS NOT NULL AND c.escalationLevel > 0 AND c.status NOT IN (com.civic_connect.backend.common.enums.ComplaintStatus.RESOLVED, com.civic_connect.backend.common.enums.ComplaintStatus.REJECTED)")
+    List<Complaint> findAllEscalated();
 }
