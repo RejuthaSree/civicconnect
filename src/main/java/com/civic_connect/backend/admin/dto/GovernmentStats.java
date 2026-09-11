@@ -24,7 +24,12 @@ public record GovernmentStats(
         Map<String, Long> countsByPriority,
         Map<String, Long> countsByIssueType,
         Map<String, Long> countsByArea,
-        List<TopAreaStat> topAreas
+        List<TopAreaStat> topAreas,
+        Map<String, Long> slaBreachedByPriority,
+        long slaEscalatedSupervisor,
+        long slaEscalatedAdmin,
+        long slaMetTotal,
+        Double slaCompliancePct
 ) {
     public record TopAreaStat(String area, long complaints, long open, long resolved) {}
 }

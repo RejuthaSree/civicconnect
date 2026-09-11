@@ -226,7 +226,17 @@ function complaintCard(c) {
     ).join("; ");
     dupBadges += `<span class="badge duplicate-warning" title="Potential matches: ${escapeHtml(list)}">⚠ ${c.potentialDuplicates.length} potential dup${c.potentialDuplicates.length === 1 ? "" : "es"}</span>`;
   }
-  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span>${aiBadges}${dupBadges}<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}</p></article>`;
+  let slaBadges = "";
+  const lvl = c.escalationLevel ?? 0;
+  if (lvl >= 2) slaBadges += `<span class="badge sla-admin" title="Escalated to ADMIN due to SLA">🔴 ADMIN ESCALATION</span>`;
+  else if (lvl === 1) slaBadges += `<span class="badge sla-supervisor" title="Escalated to SUPERVISOR due to SLA">🟠 SUPERVISOR</span>`;
+  if (c.slaBreached) slaBadges += `<span class="badge sla-breached" title="SLA deadline exceeded">⚠ SLA BREACH</span>`;
+  else if (c.slaRemainingHours != null && typeof c.slaRemainingHours === "number") {
+    const hrs = c.slaRemainingHours;
+    if (hrs <= 2) slaBadges += `<span class="badge sla-warn" title="SLA deadline approaching">⏱ ${hrs.toFixed(1)}h left</span>`;
+    else slaBadges += `<span class="badge sla-ok" title="SLA on track">⏱ ${hrs.toFixed(1)}h left</span>`;
+  }
+  return `<article class="data-card">${c.imageUrl ? `<img class="complaint-image" src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.title)}">` : ""}<span class="badge">${escapeHtml(c.status)}</span>${aiBadges}${dupBadges}${slaBadges}<h3>${escapeHtml(c.title)}</h3><p>${escapeHtml(c.issueType)} · ${escapeHtml(c.area)}, ${escapeHtml(c.city)}</p><p>${c.issueScope === "HOUSEHOLD" ? "Household issue · citizen payment" : "Public issue · government payment"}</p><p>Priority: ${escapeHtml(c.priority || "MEDIUM")} · Votes: ${c.upvotes ?? 0}</p><p class="hint">Reference #${c.id} · ${time(c.reportedAt)}${c.slaDeadline ? ` · SLA: ${time(c.slaDeadline)}` : ""}</p></article>`;
 }
 function workerCard(w) {
   return `<article class="data-card"><span class="badge">${escapeHtml(w.verificationStatus)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.skill)} · ${escapeHtml(w.serviceArea || "—")}</p><p>★ ${(w.rating ?? 0).toFixed?.(1) ?? w.rating} · ${w.completedTasks ?? 0} jobs</p><p class="hint">Worker ID ${w.id}</p></article>`;
@@ -273,6 +283,7 @@ async function loadAssignmentChoices() {
     fillSelect("classify-complaint-id", complaints, complaintLabel);
     fillSelect("dup-detect-complaint-id", complaints, complaintLabel);
     fillSelect("dup-ungroup-complaint-id", complaints, complaintLabel);
+    fillSelect("escalate-complaint-id", complaints, complaintLabel);
     fillSelect("booking-issue-id", complaints, complaintLabel);
     const assignmentLabel = (a) => `#${a.id} — complaint #${a.complaintId} · ${a.completionStatus || "awaiting acceptance"}`;
     fillSelect("accept-assignment-id", assignments.filter((a) => !a.acceptedAt), assignmentLabel);
@@ -596,6 +607,37 @@ async function action(name) {
         data = await api(`/api/admin/complaints/${targetId}/duplicates/group`, { method: "DELETE" });
         showResult("Ungrouped complaint", data);
         showToast("Complaint removed from duplicate group.");
+        break;
+      }
+      case "admin-escalate": {
+        const targetId = requireNumber("escalate-complaint-id", "Complaint ID");
+        const lvl = value("escalate-level") || "";
+        const lvlParam = lvl ? `&level=${lvl}` : "";
+        data = await api(`/api/admin/complaints/${targetId}/escalate?dummy=1${lvlParam}`, { method: "POST" });
+        showResult("Complaint escalation", data);
+        showToast(`Complaint #${targetId} escalated to level ${data.escalationLevel ?? "N/A"}.`);
+        break;
+      }
+      case "admin-escalated-list": {
+        data = await api("/api/admin/complaints/escalated");
+        renderCards("complaint-list", (data || []).map((e) => ({
+          id: e.complaintId,
+          title: e.title,
+          status: (e.status || "") + (e.escalationLevel >= 2 ? " · ADMIN ESCALATED" : e.escalationLevel === 1 ? " · SUPERVISOR ESCALATED" : ""),
+          area: "—", city: "—",
+          issueType: "—",
+          issueScope: "PUBLIC",
+          priority: e.priority || "MEDIUM",
+          upvotes: e.remainingHours != null ? `${e.remainingHours.toFixed(1)}h` : (e.slaBreached ? "SLA BREACHED" : "—"),
+          reportedAt: e.slaDeadline,
+          imageUrl: null,
+          aiCategory: null, aiSeverity: null, aiConfidence: null, aiConfirmedByAdmin: null,
+          duplicateGroupId: null, potentialDuplicates: null, reporterId: null, assignedWorkerId: null,
+          slaDeadline: e.slaDeadline, slaBreached: e.slaBreached, slaRemainingHours: e.remainingHours,
+          escalationLevel: e.escalationLevel
+        })), complaintCard);
+        showResult("Escalated complaints", data);
+        showToast(`${(data || []).length} escalated complaint${(data || []).length === 1 ? "" : "s"} loaded.`);
         break;
       }
       default:
@@ -997,6 +1039,17 @@ async function refreshGovernmentStats() {
     $("gov-kpi-new-7d").textContent = s.reportedLast7Days ?? 0;
     $("gov-kpi-avg").textContent = s.avgResolutionHours != null ? `${s.avgResolutionHours} h` : "—";
     $("gov-kpi-sla").textContent = s.slaBreached ?? 0;
+    const compliance = s.slaCompliancePct != null ? `${s.slaCompliancePct}%` : "—";
+    const metTotal = s.slaMetTotal ?? 0;
+    const supervisorEsc = s.slaEscalatedSupervisor ?? 0;
+    const adminEsc = s.slaEscalatedAdmin ?? 0;
+    const byPrio = s.slaBreachedByPriority || {};
+    const bpText = Object.entries(byPrio).filter(([_, v]) => v > 0).map(([k, v]) => `${k}:${v}`).join(" · ") || "none";
+    if ($("gov-kpi-compliance")) $("gov-kpi-compliance").textContent = compliance;
+    if ($("gov-kpi-met")) $("gov-kpi-met").textContent = metTotal;
+    if ($("gov-kpi-esc-sup")) $("gov-kpi-esc-sup").textContent = supervisorEsc;
+    if ($("gov-kpi-esc-admin")) $("gov-kpi-esc-admin").textContent = adminEsc;
+    if ($("gov-kpi-bp")) $("gov-kpi-bp").textContent = bpText;
     $("gov-kpi-w-total").textContent = s.totalWorkers ?? 0;
     $("gov-kpi-w-verified").textContent = s.verifiedWorkers ?? 0;
     $("gov-kpi-act-assn").textContent = s.activeAssignments ?? 0;
@@ -1008,6 +1061,7 @@ async function refreshGovernmentStats() {
     renderBreakdown("gov-status", Object.entries(s.countsByStatus || {}).map(([k, v]) => [k, `${v} complaints`, null]));
     renderBreakdown("gov-types", Object.entries(s.countsByIssueType || {}).map(([k, v]) => [k, `${v} complaints`, null]));
     renderBreakdown("gov-priority", Object.entries(s.countsByPriority || {}).map(([k, v]) => [k, `${v} complaints`, null]));
+    renderBreakdown("gov-sla-bp", Object.entries(byPrio).map(([k, v]) => [k, `${v} breached`, null]));
   } catch (e) {
     showToast(e.message, true);
   }

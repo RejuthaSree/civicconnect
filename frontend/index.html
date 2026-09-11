@@ -810,6 +810,40 @@
                 </button>
               </div>
             </article>
+            <article class="card">
+              <p class="eyebrow">SLA escalation</p>
+              <h3>Escalate complaint manually</h3>
+              <div class="stack-form">
+                <label
+                  >Choose a complaint<select id="escalate-complaint-id"></select></label
+                ><label
+                  >Target escalation level<select id="escalate-level">
+                    <option value="">Auto (next level)</option>
+                    <option value="1">Level 1 — Supervisor</option>
+                    <option value="2">Level 2 — Admin</option>
+                  </select></label
+                ><button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-escalate"
+                >
+                  Escalate complaint
+                </button>
+                <p class="hint">Escalations are also raised automatically when SLA deadlines are breached.</p>
+              </div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">SLA escalation</p>
+              <h3>List escalated complaints</h3>
+              <div class="stack-form">
+                <button
+                  class="primary-button endpoint-action"
+                  data-endpoint="admin-escalated-list"
+                >
+                  Load escalated complaints
+                </button>
+                <p class="hint">All open complaints currently escalated to supervisor or admin level.</p>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -842,7 +876,10 @@
             <article class="card"><span class="kpi-tag">Performance</span>
               <h3 id="gov-kpi-avg">—</h3>
               <p>Average resolution hours</p>
-              <div class="kpi-row danger"><span>SLA breached (48 h) <b id="gov-kpi-sla">—</b></span></div>
+              <div class="kpi-row"><span>SLA met <b id="gov-kpi-met">—</b></span><span>Compliance <b id="gov-kpi-compliance">—</b></span></div>
+              <div class="kpi-row danger"><span>SLA breached <b id="gov-kpi-sla">—</b></span></div>
+              <div class="kpi-row"><span>Escalated · supervisor <b id="gov-kpi-esc-sup">—</b></span><span>Admin <b id="gov-kpi-esc-admin">—</b></span></div>
+              <p class="hint">Breach by priority: <b id="gov-kpi-bp">—</b></p>
             </article>
             <article class="card"><span class="kpi-tag">Workforce</span>
               <h3 id="gov-kpi-w-total">—</h3>
@@ -876,6 +913,11 @@
               <p class="eyebrow">Severity mix</p>
               <h3>Complaints by priority</h3>
               <div id="gov-priority" class="gov-list empty-state">No priority data yet.</div>
+            </article>
+            <article class="card">
+              <p class="eyebrow">SLA breaches</p>
+              <h3>Breaches by priority</h3>
+              <div id="gov-sla-bp" class="gov-list empty-state">No breach data yet.</div>
             </article>
           </div>
 

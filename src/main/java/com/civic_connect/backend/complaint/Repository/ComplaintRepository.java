@@ -65,4 +65,13 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
             @Param("from") Instant from,
             @Param("to") Instant to
     );
+
+    @Query("SELECT c FROM Complaint c WHERE c.status NOT IN (com.civic_connect.backend.common.enums.ComplaintStatus.RESOLVED, com.civic_connect.backend.common.enums.ComplaintStatus.REJECTED)")
+    List<Complaint> findAllOpenForSla();
+
+    @Query("SELECT COUNT(c) FROM Complaint c WHERE c.status NOT IN (com.civic_connect.backend.common.enums.ComplaintStatus.RESOLVED, com.civic_connect.backend.common.enums.ComplaintStatus.REJECTED) AND c.slaDeadline IS NOT NULL AND c.slaDeadline < :now AND c.priority = :priority")
+    long countSlaBreachedByPriority(@Param("now") Instant now, @Param("priority") PriorityLevel priority);
+
+    @Query("SELECT COUNT(c) FROM Complaint c WHERE c.escalationLevel IS NOT NULL AND c.escalationLevel >= :level AND c.status NOT IN (com.civic_connect.backend.common.enums.ComplaintStatus.RESOLVED, com.civic_connect.backend.common.enums.ComplaintStatus.REJECTED)")
+    long countEscalatedAtLevel(@Param("level") int level);
 }

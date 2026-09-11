@@ -7,6 +7,7 @@ import com.civic_connect.backend.common.enums.IssueType;
 import com.civic_connect.backend.common.enums.PriorityLevel;
 import com.civic_connect.backend.complaint.dto.ComplaintResponse;
 import com.civic_connect.backend.complaint.service.ComplaintService;
+import com.civic_connect.backend.sla.service.SlaService;
 import com.civic_connect.backend.worker.dto.WorkerResponse;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
@@ -20,8 +21,9 @@ import java.util.List;
 public class AdminController {
  private final ComplaintService complaints;
  private final WorkforceAdminService workforce;
- public AdminController(ComplaintService complaints, WorkforceAdminService workforce) {
-  this.complaints=complaints; this.workforce=workforce;
+ private final SlaService sla;
+ public AdminController(ComplaintService complaints, WorkforceAdminService workforce, SlaService sla) {
+  this.complaints=complaints; this.workforce=workforce; this.sla=sla;
  }
  @GetMapping("/stats")
  public GovernmentStats stats(Authentication authentication) {
@@ -66,6 +68,16 @@ public class AdminController {
  @DeleteMapping("/complaints/{id}/duplicates/group")
  public ComplaintResponse ungroupDuplicate(Authentication a, @PathVariable("id") Long id) {
   return workforce.ungroupDuplicate(a.getName(), id);
+ }
+ @PostMapping("/complaints/{id}/escalate")
+ public SlaService.ComplaintResponseEscalation escalate(Authentication a,
+                                                        @PathVariable("id") Long id,
+                                                        @RequestParam(value="level", required=false) Integer level) {
+  return sla.escalate(a.getName(), id, level);
+ }
+ @GetMapping("/complaints/escalated")
+ public List<SlaService.ComplaintResponseEscalation> escalated(Authentication a) {
+  return sla.listEscalated(a.getName());
  }
  @PostMapping("/workers/{id}/verification")
  public WorkerResponse verifyWorker(Authentication a,@PathVariable("id") Long id,

@@ -11,6 +11,7 @@ import com.civic_connect.backend.complaint.Repository.ComplaintVoteRepository;
 import com.civic_connect.backend.complaint.dto.*;
 import com.civic_connect.backend.notification.entity.Notification;
 import com.civic_connect.backend.notification.repository.NotificationRepository;
+import com.civic_connect.backend.sla.service.SlaService;
 import com.civic_connect.backend.user.entity.User;
 import com.civic_connect.backend.user.Repository.UserRepository;
 import com.civic_connect.backend.worker.entity.Worker;
@@ -65,6 +66,8 @@ public class ComplaintService {
         c.setPriority(request.priority());
         c.setIssueScope(request.issueScope() == null ? IssueScope.PUBLIC : request.issueScope());
         c.setReportedBy(reporter);
+        c = complaints.save(c);
+        c.setSlaDeadline(SlaService.computeDeadline(c.getReportedAt(), c.getPriority()));
         c = complaints.save(c);
         try {
             AiClassificationResult ai = aiClassifier.classify(
@@ -145,6 +148,7 @@ public class ComplaintService {
         requireRole(current(email), Role.ADMIN);
         Complaint c = get(id);
         c.setPriority(priority);
+        c.setSlaDeadline(SlaService.computeDeadline(c.getReportedAt(), priority));
         return toResponse(c);
     }
     public Complaint get(Long id) {
@@ -324,10 +328,16 @@ public class ComplaintService {
 
     public ComplaintResponse toResponse(Complaint c, List<DuplicateCandidate> potentialDuplicates)
     {
+        Instant now = Instant.now();
         AiClassificationResult ai = parseAiClassification(c.getAiClassification());
         return new ComplaintResponse(c.getId(),c.getTitle(),c.getDescription(),
                 c.getAddress(),c.getArea(),c.getCity(),c.getLatitude(),
-                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getIssueScope(),c.getReportedAt(),c.getResolvedAt(),c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId(),
+                c.getLongitude(),c.getImageUrl(),c.getStatus(),c.getPriority(),c.getIssueType(),c.getIssueScope(),c.getReportedAt(),c.getResolvedAt(),
+                c.getSlaDeadline(),
+                SlaService.isSlaBreached(c, now),
+                SlaService.remainingHours(c, now),
+                c.getEscalationLevel(),
+                c.getUpvotes(),c.getAiClassification(),c.getReportedBy().getId(),c.getAssignedWorker()==null?null:c.getAssignedWorker().getId(),
                 ai == null ? null : (ai.category() == null ? null : ai.category().name()),
                 ai == null ? null : (ai.severity() == null ? null : ai.severity().name()),
                 ai == null ? null : ai.suggestedDepartment(),

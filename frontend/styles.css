@@ -641,6 +641,26 @@ textarea:focus {
   background: #4a2a4d;
   color: #e8a6ff;
 }
+.badge.sla-breached {
+  background: #5f1e1e;
+  color: #ff8a8a;
+}
+.badge.sla-admin {
+  background: #5f1e2a;
+  color: #ff9eb6;
+}
+.badge.sla-supervisor {
+  background: #5f3f1e;
+  color: #ffc27c;
+}
+.badge.sla-warn {
+  background: #4c461e;
+  color: #ffe38a;
+}
+.badge.sla-ok {
+  background: #1e4d42;
+  color: #8af0d3;
+}
 .empty-state {
   display: block;
   padding: 28px;

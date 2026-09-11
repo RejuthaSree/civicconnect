@@ -52,6 +52,8 @@ public class Complaint {
     @Column(updatable = false)
     private Instant reportedAt;
     private Instant resolvedAt;
+    private Instant slaDeadline;
+    private Integer escalationLevel = 0;
     private Integer upvotes = 0;
     private String aiClassification;
     private String duplicateGroupId;

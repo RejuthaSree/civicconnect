@@ -146,6 +146,30 @@ public class WorkforceAdminService {
   long resolvedLast7Days = complaintRepository.countResolvedSince(sevenDaysAgo);
   long slaBreached = complaintRepository.countSlaBreached(slaCutoff);
 
+  Instant now = Instant.now();
+  Map<String, Long> slaBreachedByPriority = new LinkedHashMap<>();
+  for (PriorityLevel p : PriorityLevel.values()) {
+    slaBreachedByPriority.put(p.name(), complaintRepository.countSlaBreachedByPriority(now, p));
+  }
+  long slaEscalatedSupervisor = complaintRepository.countEscalatedAtLevel(1);
+  long slaEscalatedAdmin = complaintRepository.countEscalatedAtLevel(2);
+  long slaMetTotal = 0;
+  Double slaCompliancePct = null;
+  List<Complaint> resolvedWithSla = complaintRepository.findAllResolvedWithReportedAt();
+  if (!resolvedWithSla.isEmpty()) {
+    long n = resolvedWithSla.size();
+    long met = 0;
+    for (Complaint c : resolvedWithSla) {
+      if (c.getReportedAt() != null && c.getResolvedAt() != null) {
+        Instant deadline = c.getSlaDeadline() != null ? c.getSlaDeadline()
+                : c.getReportedAt().plus(com.civic_connect.backend.sla.service.SlaService.slaWindowFor(c.getPriority()));
+        if (!c.getResolvedAt().isAfter(deadline)) met++;
+      }
+    }
+    slaMetTotal = met;
+    slaCompliancePct = Math.round(met * 1000.0 / n) / 10.0;
+  }
+
   long openComplaints = 0;
   long inProgressComplaints = 0;
   Map<String, Long> countsByStatus = new LinkedHashMap<>();
@@ -230,7 +254,12 @@ public class WorkforceAdminService {
           countsByPriority,
           countsByIssueType,
           countsByArea,
-          topAreas
+          topAreas,
+          slaBreachedByPriority,
+          slaEscalatedSupervisor,
+          slaEscalatedAdmin,
+          slaMetTotal,
+          slaCompliancePct
   );
  }
 
