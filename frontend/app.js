@@ -22,6 +22,37 @@ const number = (id) => {
   const v = value(id);
   return v === "" ? null : Number(v);
 };
+let _choicesPending = null;
+let _choicesSignature = null;
+function fillSelect(id, items, label) {
+  const select = $(id);
+  if (!select) return;
+  const current = select.value;
+  const ids = items.map((it) => String(it.id));
+  const key = `${ids.length}|${ids.join(",")}|${ids.map((i) => { const it = items.find((x) => String(x.id) === i); return it ? label(it) : ""; }).join("|")}`;
+  if (select.dataset.sig === key && select.options.length > 0) {
+    return;
+  }
+  select.dataset.sig = key;
+  const frag = document.createDocumentFragment();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose an option";
+  frag.appendChild(placeholder);
+  for (const item of items) {
+    const opt = document.createElement("option");
+    opt.value = String(item.id);
+    opt.textContent = label(item);
+    frag.appendChild(opt);
+  }
+  select.innerHTML = "";
+  select.appendChild(frag);
+  if (current && ids.includes(current)) {
+    select.value = current;
+  } else {
+    select.value = "";
+  }
+}
 
 const endpointGroups = [
   [
