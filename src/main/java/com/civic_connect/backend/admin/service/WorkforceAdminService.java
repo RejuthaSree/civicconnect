@@ -8,6 +8,8 @@ import com.civic_connect.backend.common.enums.CompletionStatus;
 import com.civic_connect.backend.common.enums.ComplaintStatus;
 import com.civic_connect.backend.common.enums.IssueScope;
 import com.civic_connect.backend.common.enums.IssueType;
+import com.civic_connect.backend.common.enums.PaymentSource;
+import com.civic_connect.backend.common.enums.PaymentStatus;
 import com.civic_connect.backend.common.enums.PriorityLevel;
 import com.civic_connect.backend.common.enums.Role;
 import com.civic_connect.backend.common.enums.VerificationStatus;
@@ -227,9 +229,9 @@ public class WorkforceAdminService {
   long unpaidPublicAssignments = completedPublicAssignments;
   long paidPublic = 0;
   for (var p : payments.findAll()) {
-   if (p.getPaymentSource() != null && p.getPaymentSource().name().contains("GOVERNMENT")
+   if (p.getPaymentSource() != null && p.getPaymentSource() == PaymentSource.GOVERNMENT
            && p.getPaymentStatus() != null
-           && (p.getPaymentStatus().name().equals("PAID") || p.getPaymentStatus().name().equals("VERIFIED"))) {
+           && p.getPaymentStatus() == PaymentStatus.SUCCESS) {
     paidPublic++;
    }
   }
