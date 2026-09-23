@@ -518,12 +518,10 @@
                   >Choose a verified worker<select id="booking-worker-id"></select></label
                 ><label
                   >Choose your complaint<select id="booking-issue-id"></select></label
-                ><label
-                  >Amount (₹)<input
-                    id="booking-amount"
-                    type="number"
-                    min="1"
-                    step="0.01" /></label
+                ><div>
+                  <p class="eyebrow">Fixed price</p>
+                  <p id="booking-fixed-price" class="hint">Choose a complaint to see the fixed price.</p>
+                </div>
                 ><button
                   class="primary-button endpoint-action"
                   data-endpoint="booking-create"
@@ -568,6 +566,17 @@
                   data-endpoint="booking-confirm"
                 >
                   Confirm completion
+                </button>
+              </div>
+            </article>
+            <article class="card" data-roles="ADMIN">
+              <p class="eyebrow">Government payment approval</p>
+              <h3>Verify completed public work</h3>
+              <div class="stack-form">
+                <label>Choose public booking<select id="gov-verify-booking-id"></select></label>
+                <p class="hint">This verifies completed public work and opens the secure government Razorpay checkout.</p>
+                <button class="primary-button endpoint-action" data-endpoint="admin-gov-verify-pay">
+                  Verify and pay securely
                 </button>
               </div>
             </article>
@@ -973,14 +982,22 @@
         <form id="complaint-form" class="form-grid modal-form">
           <label>Title<input name="title" id="cf-title" required /></label
           ><label
-            >Issue type<select name="issueType" required>
-              <option>ROAD</option>
-              <option>GARBAGE</option>
-              <option>WATER</option>
-              <option>ELECTRICITY</option>
-              <option>DRAINAGE</option>
-              <option>SAFETY</option>
-              <option>OTHER</option>
+            >Issue type<select name="issueType" id="cf-issue-type" required>
+              <optgroup label="Public issues — government pays">
+                <option value="ROAD">Road repair</option>
+                <option value="GARBAGE">Garbage collection</option>
+                <option value="WATER">Water supply</option>
+                <option value="ELECTRICITY">Electricity</option>
+                <option value="DRAINAGE">Drainage</option>
+                <option value="SAFETY">Public safety</option>
+                <option value="OTHER">Other public issue</option>
+              </optgroup>
+              <optgroup label="Private / household issues — you pay">
+                <option value="DEEP_CLEANING">Deep cleaning</option>
+                <option value="PAINTING">Painting</option>
+                <option value="WALL_REPAIR">Repair walls</option>
+                <option value="PLUMBING">Plumbing</option>
+              </optgroup>
             </select></label
           ><label class="full"
             >Description<textarea name="description" id="cf-description" required></textarea></label
@@ -995,7 +1012,7 @@
               <option>CRITICAL</option>
             </select></label
           ><label
-            >Who pays?<select name="issueScope" required>
+            >Who pays?<select name="issueScope" id="cf-issue-scope" required disabled>
               <option value="PUBLIC">Public issue — government pays</option>
               <option value="HOUSEHOLD">Household issue — I pay</option>
             </select></label

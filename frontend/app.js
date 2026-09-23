@@ -22,36 +22,19 @@ const number = (id) => {
   const v = value(id);
   return v === "" ? null : Number(v);
 };
-let _choicesPending = null;
-let _choicesSignature = null;
+
 function fillSelect(id, items, label) {
   const select = $(id);
   if (!select) return;
   const current = select.value;
-  const ids = items.map((it) => String(it.id));
-  const key = `${ids.length}|${ids.join(",")}|${ids.map((i) => { const it = items.find((x) => String(x.id) === i); return it ? label(it) : ""; }).join("|")}`;
-  if (select.dataset.sig === key && select.options.length > 0) {
-    return;
-  }
-  select.dataset.sig = key;
-  const frag = document.createDocumentFragment();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Choose an option";
-  frag.appendChild(placeholder);
-  for (const item of items) {
-    const opt = document.createElement("option");
-    opt.value = String(item.id);
-    opt.textContent = label(item);
-    frag.appendChild(opt);
-  }
-  select.innerHTML = "";
-  select.appendChild(frag);
-  if (current && ids.includes(current)) {
-    select.value = current;
-  } else {
-    select.value = "";
-  }
+  const options = items.map((item) => ({ id: String(item.id), label: label(item) }));
+  const signature = options.map((item) => `${item.id}:${item.label}`).join("|");
+  if (select.dataset.signature === signature) return;
+  select.dataset.signature = signature;
+  select.innerHTML = `<option value="">Choose an option</option>${options
+    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
+    .join("")}`;
+  if (options.some((item) => item.id === current)) select.value = current;
 }
 
 const endpointGroups = [
@@ -957,7 +940,6 @@ function setupForms() {
       const complaint = state.lastComplaints.find((c) => c.id === cid);
       if (complaint && typeof PRICING[complaint.issueType] === "number") {
         hint.textContent = `Fixed price: ₹${PRICING[complaint.issueType]} (${complaint.issueType} · ${complaint.issueScope === "HOUSEHOLD" ? "you pay" : "government pays"})`;
-        $("booking-amount").value = PRICING[complaint.issueType];
       } else {
         hint.textContent = "Price will be computed by the server.";
       }
@@ -971,6 +953,10 @@ function setupForms() {
       latitude: Number(fd.get("latitude")),
       longitude: Number(fd.get("longitude")),
     });
+    // Disabled controls are not included in FormData. Keep the UI locked while
+    // still sending the scope determined by the selected issue type.
+    const selectedType = fd.get("issueType");
+    body.issueScope = HOUSEHOLD_ISSUE_TYPES.has(selectedType) ? "HOUSEHOLD" : "PUBLIC";
     try {
       const data = await api("/api/complaints", { method: "POST", body });
       showResult("Complaint created", data);
