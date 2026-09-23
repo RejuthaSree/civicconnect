@@ -27,14 +27,25 @@ function fillSelect(id, items, label) {
   const select = $(id);
   if (!select) return;
   const current = select.value;
-  const options = items.map((item) => ({ id: String(item.id), label: label(item) }));
-  const signature = options.map((item) => `${item.id}:${item.label}`).join("|");
-  if (select.dataset.signature === signature) return;
+  const ids = items.map((item) => String(item.id));
+  const signature = items
+    .map((item) => `${item.id}:${label(item)}`)
+    .join("|");
+  if (select.dataset.signature === signature && select.options.length > 0) return;
   select.dataset.signature = signature;
-  select.innerHTML = `<option value="">Choose an option</option>${options
-    .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
-    .join("")}`;
-  if (options.some((item) => item.id === current)) select.value = current;
+  const fragment = document.createDocumentFragment();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose an option";
+  fragment.appendChild(placeholder);
+  items.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = String(item.id);
+    option.textContent = label(item);
+    fragment.appendChild(option);
+  });
+  select.replaceChildren(fragment);
+  select.value = ids.includes(current) ? current : "";
 }
 
 const endpointGroups = [
