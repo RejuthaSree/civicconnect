@@ -2,60 +2,67 @@
 
 CivicConnect is a civic issue-resolution platform. Citizens can report household or public problems, work with verified local workers, track progress with before-and-after evidence, confirm completion, and make secure Razorpay payments. Administrators manage public issues, worker verification, assignments, and government-funded payments.
 
-The project contains:
+## Project structure
 
-- A Spring Boot + PostgreSQL backend in `src/`
-- frontend in `frontend/` using HTML, CSS, and JavaScript
-- Google OAuth sign-in with JWT API access
-- Razorpay Checkout with server-side signature verification(test api key-> after deployment live key)
+| Location | Contents |
+| --- | --- |
+| `src/main/java` | Spring Boot backend: authentication, roles, complaints, workers, assignments, bookings, payments, notifications, AI, SLA, and admin services. |
+| `src/main/resources` | Application configuration. |
+| `src/test` | H2-backed automated tests, independent of a running local PostgreSQL container. |
+| `frontend` | Framework-free HTML, CSS, JavaScript, and static development server. See the [frontend guide](frontend/README.md). |
+| `docker-compose.yml` | Local PostgreSQL container definition. |
 
 ## Features
 
-- Role-aware citizen, worker, and administrator workspaces
-- Google sign-in and protected API calls
-- Location-aware civic complaint reporting
-- Household and public issue payment responsibility
-- One upvote per citizen account for each complaint
-- Worker registration, verification, availability, portfolio, and reviews
-- Assignment workflow with acceptance, before/after proof, citizen verification, and reviews
-- Booking workflow with worker progress updates and completion confirmation
-- Razorpay Checkout; payment is marked successful only after server-side signature verification
-- Notifications and payment history
+| Feature | Summary |
+| --- | --- |
+| Role-aware workspaces | Citizens, workers, and administrators see their own relevant workflow and permissions. |
+| Google OAuth + JWT | Google sign-in creates a JWT-protected API session. |
+| Complaints | Location-aware reporting, one upvote per account, duplicate detection, AI classification, and photo evidence. |
+| Workers | Registration, administrator verification, availability, portfolios, ratings, and reviews. |
+| Assignments and bookings | End-to-end lifecycle: selection, acceptance, completion, proof, verification, and review. |
+| Scope and fixed pricing | Public issues are government-paid; household issues are citizen-paid. Prices are fixed by issue type on the server. |
+| Razorpay payments | Razorpay Checkout with server-side signature verification; public payments require government approval. |
+| SLA and operations | Priority-based deadlines, escalation, notifications, civic KPIs, and an administrator map. |
 - **AI complaint classification** powered by Google Gemini — suggests category, severity, suggested department, and confidence. Stored as JSON in each complaint; admin override promotes it to the live issue type and priority.
 - **Duplicate complaint detection** — combines text similarity (Sørensen–Dice bigram coefficient) with geographic proximity (Haversine, 2 km radius) or area/city match. Citizens see a post-submit warning panel with similar reports; admins approve grouping them under a `DUP-N` group key.
 - **SLA escalation with priority-tiered deadlines** — each complaint gets an `slaDeadline` based on its priority (CRITICAL 4h, HIGH 12h, MEDIUM 24h, LOW 48h), recomputed automatically when priority changes. A 5-minute scheduled job backfills deadlines for legacy rows, flags breaches, and auto-escalates (L1=Supervisor immediately on breach; L2=Admin after 2 additional hours). Notifications are sent to admins, assigned workers, and the reporting citizen. Admins can also escalate manually or list all currently escalated complaints. The government dashboard exposes SLA compliance %, per-priority breach counts, escalated counts, and per-priority breach breakdown.
 
 ## Prerequisites
 
-- docker destop
+- Docker Desktop (optional, for local PostgreSQL)
 - Java 21 or newer
 - PostgreSQL 14 or newer
 - Node.js 18 or newer
 - A Google OAuth client configured for local development
 - A Razorpay account and keys
 - 
-## 0.Docker setup and PostgreSQL Docker Commands
+## 0. Docker and PostgreSQL commands
 
 Start PostgreSQL:
 
-```powershell/terminal
+```powershell
 docker start civic-connect-new
 ```
 Connect to the database:
 
-```docker exec -it civic-connect-new psql -U postgres -d civicconnect```
+```powershell
+docker exec -it civic-connect-new psql -U postgres -d civicconnect
+```
 
 Useful PostgreSQL commands:
 
-```\dt```
-```SELECT * FROM complaints;```
-```SELECT id, username, email, role FROM users;```
-```SELECT id, user_id, skill, verification_status, available FROM workers;```
-```SELECT * FROM assignments;```
-```SELECT * FROM bookings;```
-```SELECT * FROM payments;```
-```SELECT * FROM complaint_votes;```
-```\q```
+```sql
+\dt
+SELECT * FROM complaints;
+SELECT id, username, email, role FROM users;
+SELECT id, user_id, skill, verification_status, available FROM workers;
+SELECT * FROM assignments;
+SELECT * FROM bookings;
+SELECT * FROM payments;
+SELECT * FROM complaint_votes;
+\q
+```
 
 
 ## 1. Create the database
